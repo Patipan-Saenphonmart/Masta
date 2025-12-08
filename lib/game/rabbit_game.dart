@@ -1,0 +1,786 @@
+import 'dart:math';
+import 'package:flame/components.dart';
+import 'package:flame/game.dart';
+import 'package:flame/input.dart';
+import 'package:flutter/material.dart';
+import 'package:flame_tiled/flame_tiled.dart' hide Text;
+import 'package:flame/collisions.dart';
+
+import '../game_data.dart'; // ✅ เชื่อมต่อ GameData
+import '../character_page.dart'; // ✅ Import หน้า Character เพื่อทำปุ่มเปิดกระเป๋า
+import 'components/rabbit.dart';
+import 'components/enemy.dart';
+import 'overlays/question_overlay.dart';
+import 'overlays/skill_overlay.dart';
+
+// =====================================================================
+// 1. WIDGET: Game Page & UI Overlays
+// =====================================================================
+
+class RabbitGamePage extends StatelessWidget {
+  const RabbitGamePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final game = RabbitGame();
+
+    return Scaffold(
+      body: GameWidget<RabbitGame>(
+        game: game,
+        overlayBuilderMap: {
+          'QuestionOverlay': (ctx, g) => QuestionOverlay(game: g, topic: ''),
+          'SkillOverlay': (ctx, g) => SkillOverlay(game: g),
+          'DialogOverlay': (ctx, g) => _buildDialogOverlay(ctx, g),
+          'ActionOverlay': (ctx, g) => _buildActionOverlay(ctx, g),
+          // ✅ เพิ่ม Overlay ปุ่มกระเป๋า
+          'BagOverlay': (ctx, g) => _buildBagOverlay(context, g),
+        },
+        // เพิ่ม BagOverlay เข้าไปใน list เริ่มต้น
+        initialActiveOverlays: const ['SkillOverlay', 'BagOverlay'],
+      ),
+    );
+  }
+
+  // ✅ สร้างปุ่ม Action ที่เปลี่ยนไอคอนได้ (NPC / Portal / Item)
+  Widget _buildActionOverlay(BuildContext context, RabbitGame game) {
+    IconData icon = Icons.touch_app;
+    Color bgColor = Colors.amber;
+
+    if (game.activeNpc != null) {
+      icon = Icons.chat_bubble; // คุย
+      bgColor = Colors.blueAccent;
+    } else if (game.activePortal != null) {
+      icon = Icons.meeting_room_rounded; // เข้าประตู
+      bgColor = Colors.amber;
+    } else if (game.activeItem != null) {
+      icon = Icons.back_hand; // ✅ เก็บของ (รูปมือ)
+      bgColor = Colors.green;
+    }
+
+    return Positioned(
+      bottom: 120,
+      right: 40,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => game.onActionPressed(),
+          borderRadius: BorderRadius.circular(30),
+          child: Container(
+            width: 70,
+            height: 70,
+            decoration: BoxDecoration(
+              color: bgColor.withOpacity(0.9),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 3),
+              boxShadow: const [
+                BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: 4,
+                    offset: Offset(0, 2))
+              ],
+            ),
+            child: Icon(
+              icon,
+              color: Colors.white,
+              size: 36,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ✅ ปุ่มเปิดกระเป๋า (มุมขวาบน)
+  Widget _buildBagOverlay(BuildContext context, RabbitGame game) {
+    return Positioned(
+      top: 20,
+      right: 20,
+      child: FloatingActionButton(
+        mini: true,
+        backgroundColor: Colors.brown.shade700,
+        onPressed: () {
+          // หยุดเกมชั่วคราว (ถ้าต้องการ) หรือแค่ไปหน้าใหม่
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CharacterPage()),
+          ).then((_) {
+            // เมื่อกลับมาจากหน้ากระเป๋า ให้รีเฟรช UI หรือค่าพลังถ้าจำเป็น
+            // (GameData อัปเดตแล้ว RabbitGame จะดึงค่าใหม่เองใน update loop)
+          });
+        },
+        child: const Icon(Icons.backpack, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildDialogOverlay(BuildContext context, RabbitGame game) {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        margin: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white, width: 2),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              game.currentDialogMessage,
+              style: const TextStyle(color: Colors.white, fontSize: 18),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: ElevatedButton(
+                onPressed: () => game.closeDialog(),
+                child: const Text("ปิด"),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =====================================================================
+// 2. FLAME GAME LOGIC
+// =====================================================================
+
+class RabbitGame extends FlameGame
+    with HasCollisionDetection, HasKeyboardHandlerComponents {
+  
+  // --- Components ---
+  late Rabbit rabbit;
+  Enemy? enemy;
+  @override
+  late World world;
+  late CameraComponent cameraComponent;
+  late TiledComponent map;
+  late HpBar hpBar;
+
+  // --- Configuration ---
+  int get maxHP => GameData.maxHp;
+  double enemySpeed = 80;
+  double enemyChaseRange = 250;
+
+  // --- Game State ---
+  int playerHP = 100;
+  bool inQuestion = false;
+  bool answered = false;
+  
+  // --- Interaction State ---
+  String currentDialogMessage = "";
+  bool isDialogActive = false;
+  bool isLoading = false;
+  double collisionCooldown = 0.0;
+
+  // ✅ เพิ่มตัวแปรเก็บสิ่งที่กำลังเจอ
+  Portal? activePortal;
+  Npc? activeNpc;
+  WorldItem? activeItem; // ✅ เก็บ Item ที่ยืนทับอยู่
+
+  // --- Skill States ---
+  bool isDashing = false;
+  double dashTimer = 0.0;
+  double freezeTimer = 0.0;
+
+  // --- Input ---
+  final Random rand = Random();
+  Vector2 joystickDirection = Vector2.zero();
+  Vector2 lastDirection = Vector2(1, 0);
+
+  // -------------------------------------------------------------------
+  // Lifecycle Methods
+  // -------------------------------------------------------------------
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+    playerHP = maxHP;
+
+    world = World();
+    add(world);
+
+    cameraComponent = CameraComponent(world: world)
+      ..viewfinder.anchor = Anchor.center
+      ..viewfinder.zoom = 1.8;
+    add(cameraComponent);
+
+    hpBar = HpBar(this)
+      ..position = Vector2(20, 20)
+      ..priority = 9999;
+    add(hpBar);
+
+    rabbit = Rabbit()
+      ..priority = 100
+      ..size = Vector2(50, 50)
+      ..position = Vector2(100, 100);
+    world.add(rabbit);
+    cameraComponent.follow(rabbit);
+
+    await loadLevel('new.tmx', Vector2(600, 540));
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+
+    if (isLoading) return;
+
+    if (collisionCooldown > 0) collisionCooldown -= dt;
+    
+    if (isDashing) {
+      dashTimer -= dt;
+      if (dashTimer <= 0) isDashing = false;
+    }
+    
+    if (freezeTimer > 0) {
+      freezeTimer -= dt;
+    }
+
+    world.children.whereType<PositionComponent>().forEach((component) {
+      if (component is Rabbit || component is Enemy || component is Npc || component is Decoration || component is WorldItem) {
+        double bottomY = component.position.y;
+        if (component.anchor == Anchor.center) {
+          bottomY += component.size.y / 2;
+        }
+        component.priority = bottomY.toInt();
+      }
+    });
+
+    if (!inQuestion && !isDialogActive) {
+      _updatePlayer(dt);
+      _checkInteractions(); 
+      _updateEnemies(dt);
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Update Logic Helpers
+  // -------------------------------------------------------------------
+
+  void _updatePlayer(double dt) {
+    if (rabbit.isHitPlaying) return;
+
+    if (joystickDirection.length > 0.01) {
+      rabbit.setState(RabbitState.run);
+      rabbit.faceDirection(joystickDirection.x);
+      
+      lastDirection = joystickDirection.normalized();
+
+      double currentSpeed = 100.0 + (GameData.agility * 1.5); 
+      if (isDashing) currentSpeed *= 2.5;
+
+      final velocity = joystickDirection.normalized() * currentSpeed * dt;
+      final double hitW = rabbit.size.x * 0.5;
+      final double hitH = rabbit.size.y * 0.5;
+
+      final nextX = rabbit.position.x + velocity.x;
+      final rectX = Rect.fromCenter(center: Offset(nextX, rabbit.position.y), width: hitW, height: hitH);
+      bool hitWallX = false;
+      for (final obstacle in world.children.whereType<Obstacle>()) {
+        if (rectX.overlaps(obstacle.toRect())) { hitWallX = true; break; }
+      }
+      if (!hitWallX) rabbit.position.x = nextX;
+
+      final nextY = rabbit.position.y + velocity.y;
+      final rectY = Rect.fromCenter(center: Offset(rabbit.position.x, nextY), width: hitW, height: hitH);
+      bool hitWallY = false;
+      for (final obstacle in world.children.whereType<Obstacle>()) {
+        if (rectY.overlaps(obstacle.toRect())) { hitWallY = true; break; }
+      }
+      if (!hitWallY) rabbit.position.y = nextY;
+
+    } else {
+      rabbit.setState(RabbitState.idle);
+    }
+  }
+
+  // ✅ ฟังก์ชันเช็ค NPC, Portal และ Item
+  void _checkInteractions() {
+    if (collisionCooldown > 0) return;
+
+    bool foundSomething = false;
+
+    // 1. เช็ค NPC
+    for (final npc in world.children.whereType<Npc>()) {
+      if (rabbit.toRect().inflate(10).overlaps(npc.toRect())) {
+        foundSomething = true;
+        if (activeNpc != npc) {
+          activeNpc = npc;
+          activePortal = null;
+          activeItem = null; 
+          overlays.add('ActionOverlay');
+          overlays.remove('ActionOverlay'); 
+          overlays.add('ActionOverlay');
+        }
+        break; 
+      }
+    }
+
+    // 2. เช็ค Portal
+    if (!foundSomething) {
+      for (final portal in world.children.whereType<Portal>()) {
+        if (rabbit.toRect().inflate(5).overlaps(portal.toRect())) {
+          foundSomething = true;
+          if (activePortal != portal) {
+            activePortal = portal;
+            activeNpc = null;
+            activeItem = null;
+            overlays.add('ActionOverlay');
+            overlays.remove('ActionOverlay'); 
+            overlays.add('ActionOverlay');
+          }
+          break;
+        }
+      }
+    }
+
+    // ✅ 3. เช็ค Item (เก็บของ)
+    if (!foundSomething) {
+      for (final item in world.children.whereType<WorldItem>()) {
+        if (rabbit.toRect().inflate(5).overlaps(item.toRect())) {
+          foundSomething = true;
+          if (activeItem != item) {
+            activeItem = item;
+            activePortal = null;
+            activeNpc = null;
+            overlays.add('ActionOverlay');
+            overlays.remove('ActionOverlay');
+            overlays.add('ActionOverlay');
+          }
+          break;
+        }
+      }
+    }
+
+    // ถ้าไม่เจออะไรเลย ให้เอาปุ่มออก
+    if (!foundSomething) {
+      if (activePortal != null || activeNpc != null || activeItem != null) {
+        activePortal = null;
+        activeNpc = null;
+        activeItem = null;
+        overlays.remove('ActionOverlay');
+      }
+    }
+  }
+
+  void _updateEnemies(double dt) {
+    for (final e in world.children.whereType<Enemy>()) {
+      if (e.isMounted && e.alive) {
+        if (freezeTimer > 0) continue;
+
+        final distance = rabbit.position.distanceTo(e.position);
+        Vector2 moveDir = Vector2.zero();
+
+        if (distance < enemyChaseRange) {
+          moveDir = (rabbit.position - e.position).normalized();
+          e.setState(EnemyState.run);
+        } else {
+          e.setState(EnemyState.idle);
+        }
+
+        e.faceDirection(moveDir.x);
+        e.position += moveDir * enemySpeed * dt;
+
+        if (collisionCooldown <= 0 && rabbit.toRect().overlaps(e.toRect())) {
+          enemy = e;
+          inQuestion = true;
+          answered = false;
+          joystickDirection.setZero();
+          overlays.add('QuestionOverlay');
+          overlays.remove('SkillOverlay');
+          if (activePortal != null || activeNpc != null || activeItem != null) overlays.remove('ActionOverlay');
+        }
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Actions
+  // -------------------------------------------------------------------
+
+  void onActionPressed() {
+    // คุยกับ NPC
+    if (activeNpc != null) {
+      showDialog(activeNpc!.message);
+      joystickDirection.setZero(); 
+    }
+    // เข้าประตู
+    else if (activePortal != null) {
+      Vector2 targetPos = Vector2(100, 100);
+      if (activePortal!.targetMap == 'house_interior.tmx') {
+        targetPos = Vector2(480, 270);
+      } else if (activePortal!.targetMap == 'new.tmx') {
+        targetPos = Vector2(650, 530);
+      }
+      loadLevel(activePortal!.targetMap, targetPos);
+      collisionCooldown = 2.0;
+    }
+    // ✅ เก็บไอเทม
+    else if (activeItem != null) {
+        // 1. เพิ่มของเข้า GameData
+        // สมมติว่า activeItem.name เป็นชื่อสกิลด้วย ถ้าเป็น "Scroll: Fireball"
+        // หรือเป็นชื่อไอเทม "Potion"
+        
+        String itemName = activeItem!.name;
+        
+        // ตรวจสอบว่าเป็นสกิลไหม (เช็คจากชื่อ หรือ custom property ก็ได้)
+        // ตัวอย่างง่ายๆ: ถ้าชื่อเริ่มด้วย Skill: ให้ปลดล็อคสกิล
+        if (itemName.startsWith("Skill:")) {
+            String skillId = itemName.split(":")[1].trim(); // เช่น "Skill: fireball" -> "fireball"
+            // เพิ่มเข้า unlockedSkills (ต้องแก้ GameData ให้มี method นี้ หรือ access list ตรงๆ)
+            if (!GameData.unlockedSkills.contains(skillId)) {
+                GameData.unlockedSkills.add(skillId);
+                showDialog("ได้รับสกิลใหม่: $skillId !");
+            } else {
+                showDialog("คุณมีสกิลนี้อยู่แล้ว!");
+            }
+        } else {
+            // ไอเทมทั่วไป
+            GameData.inventory.add(itemName);
+            showDialog("เก็บได้: $itemName !");
+        }
+
+        // 2. ลบออกจากฉาก
+        activeItem!.removeFromParent();
+        activeItem = null;
+        overlays.remove('ActionOverlay');
+    }
+  }
+
+  void activateSkill(String skillId) {
+      // ... (Skill Logic เดิม) ...
+      switch (skillId) {
+      case 'heal':
+        int healAmount = (maxHP * 0.3).toInt();
+        playerHP = (playerHP + healAmount).clamp(0, maxHP);
+        break;
+      case 'dash':
+        isDashing = true;
+        dashTimer = 0.3;
+        break;
+      case 'ice_blast':
+        freezeTimer = 3.0;
+        break;
+      case 'fireball':
+        final fireball = Fireball(
+          position: rabbit.position.clone(),
+          direction: joystickDirection.length > 0 ? joystickDirection : lastDirection,
+        );
+        world.add(fireball);
+        break;
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Map & Level Loading
+  // -------------------------------------------------------------------
+
+  Future<void> loadLevel(String mapName, Vector2 targetSpawnPosition) async {
+    if (isLoading) return;
+    isLoading = true;
+
+    activePortal = null;
+    activeNpc = null;
+    activeItem = null;
+    overlays.remove('ActionOverlay');
+
+    try {
+      debugPrint("🔄 Loading map: $mapName");
+      final newMap = await TiledComponent.load(mapName, Vector2(16, 16));
+      newMap.priority = 0;
+
+      world.children.whereType<TiledComponent>().forEach((m) => m.removeFromParent());
+      world.children.whereType<Npc>().forEach((n) => n.removeFromParent());
+      world.children.whereType<Portal>().forEach((p) => p.removeFromParent());
+      world.children.whereType<Enemy>().forEach((e) => e.removeFromParent());
+      world.children.whereType<Obstacle>().forEach((o) => o.removeFromParent());
+      world.children.whereType<Decoration>().forEach((d) => d.removeFromParent());
+      world.children.whereType<Fireball>().forEach((f) => f.removeFromParent());
+      // ✅ ลบไอเทมเก่า
+      world.children.whereType<WorldItem>().forEach((i) => i.removeFromParent());
+
+      map = newMap;
+      world.add(map);
+
+      rabbit.position = targetSpawnPosition;
+
+      final objLayer = map.tileMap.getLayer<ObjectGroup>('GameObjects');
+      if (objLayer != null) {
+        for (final obj in objLayer.objects) {
+          final type = obj.type.isNotEmpty ? obj.type : obj.class_;
+          switch (type) {
+            case 'NPC':
+              world.add(Npc(
+                position: Vector2(obj.x, obj.y),
+                size: Vector2(obj.width, obj.height),
+                message: obj.properties.getValue<String>('message') ?? 'สวัสดี!',
+              )..priority = 5);
+              break;
+            case 'Enemy':
+              world.add(Enemy()
+                ..position = Vector2(obj.x, obj.y)
+                ..size = Vector2(obj.width, obj.height)
+                ..priority = 5);
+              break;
+            case 'Portal':
+              world.add(Portal(
+                position: Vector2(obj.x, obj.y),
+                size: Vector2(obj.width, obj.height),
+                targetMap: obj.properties.getValue<String>('targetMap') ?? 'house_interior.tmx',
+              )..priority = 5);
+              break;
+            // ✅ Spawn Item: สร้างไอเทมจาก Tiled
+            case 'Item':
+              world.add(WorldItem(
+                position: Vector2(obj.x, obj.y),
+                size: Vector2(obj.width, obj.height),
+                name: obj.name.isNotEmpty ? obj.name : 'Unknown Item',
+              )..priority = 5);
+              break;
+          }
+        }
+      }
+
+      final colLayer = map.tileMap.getLayer<ObjectGroup>('Collisions');
+      if (colLayer != null) {
+        for (final obj in colLayer.objects) {
+          world.add(Obstacle(
+            position: Vector2(obj.x, obj.y),
+            size: Vector2(obj.width, obj.height),
+          ));
+        }
+      }
+
+      final decoLayer = map.tileMap.getLayer<ObjectGroup>('Decorations');
+      if (decoLayer != null) {
+        for (final obj in decoLayer.objects) {
+          if (obj.gid != null) {
+            final sprite = await _getSpriteFromGid(obj.gid!, map);
+            if (sprite != null) {
+              world.add(Decoration(
+                position: Vector2(obj.x, obj.y),
+                size: Vector2(obj.width, obj.height),
+                sprite: sprite,
+              ));
+            }
+          }
+        }
+      }
+
+    } catch (e) {
+      debugPrint("❌ Error loading map: $e");
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  Future<Sprite?> _getSpriteFromGid(int gid, TiledComponent map) async {
+    final tileset = map.tileMap.map.tilesets.lastWhere(
+      (ts) => ts.firstGid != null && gid >= ts.firstGid!,
+      orElse: () => map.tileMap.map.tilesets.first,
+    );
+
+    if (tileset.image != null) {
+      final source = tileset.image!.source;
+      if (source == null) return null;
+      final fileName = source.split('/').last; 
+      final image = await images.load(fileName);
+      final localId = gid - tileset.firstGid!;
+      final tileWidth = tileset.tileWidth ?? 16;
+      final tileHeight = tileset.tileHeight ?? 16;
+      final columns = tileset.columns ?? 1;
+      final spacing = tileset.spacing ?? 0;
+      final margin = tileset.margin ?? 0;
+      final row = localId ~/ columns;
+      final col = localId % columns;
+      final x = margin + (col * (tileWidth + spacing));
+      final y = margin + (row * (tileHeight + spacing));
+
+      return Sprite(
+        image,
+        srcPosition: Vector2(x.toDouble(), y.toDouble()),
+        srcSize: Vector2(tileWidth.toDouble(), tileHeight.toDouble()),
+      );
+    }
+    return null;
+  }
+
+  // -------------------------------------------------------------------
+  // UI & Input Callbacks
+  // -------------------------------------------------------------------
+
+  void setJoystickDirection(double x, double y) {
+    joystickDirection.setValues(x, y);
+  }
+
+  void showDialog(String message) {
+    currentDialogMessage = message;
+    isDialogActive = true;
+    overlays.add('DialogOverlay');
+    overlays.remove('SkillOverlay');
+    overlays.remove('ActionOverlay');
+  }
+
+  void closeDialog() {
+    isDialogActive = false;
+    overlays.remove('DialogOverlay');
+    overlays.add('SkillOverlay');
+  }
+
+  void onAnswerSelected(bool correct) {
+    if (answered) return;
+    answered = true;
+    overlays.remove('QuestionOverlay');
+    overlays.add('SkillOverlay');
+
+    if (correct) {
+      if (enemy != null) {
+        enemy!.playHit();
+        enemy!.die();
+      }
+      inQuestion = false;
+    } else {
+      int damage = 20 - GameData.defense;
+      if (damage < 5) damage = 5;
+      damagePlayer(damage);
+      rabbit.playHit();
+      if (enemy != null) {
+        Vector2 knockbackDir = (rabbit.position - enemy!.position).normalized();
+        if (knockbackDir.length == 0) knockbackDir = Vector2(1, 0);
+        rabbit.position += knockbackDir * 60;
+      }
+      collisionCooldown = 2.0;
+      inQuestion = false;
+    }
+  }
+
+  void damagePlayer(int dmg) {
+    playerHP = (playerHP - dmg).clamp(0, maxHP);
+  }
+
+  void healPlayer() {
+    playerHP = maxHP;
+  }
+}
+
+// =====================================================================
+// 3. HELPER CLASSES
+// =====================================================================
+
+class HpBar extends PositionComponent {
+  final RabbitGame game;
+  HpBar(this.game);
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    const width = 100.0;
+    const height = 10.0;
+    final hpPercent = (game.playerHP / game.maxHP).clamp(0.0, 1.0);
+    final bg = Paint()..color = Colors.red.withOpacity(0.3);
+    final fg = Paint()..color = Colors.green;
+    canvas.drawRect(Rect.fromLTWH(0, 0, width, height), bg);
+    canvas.drawRect(Rect.fromLTWH(0, 0, width * hpPercent, height), fg);
+  }
+}
+
+class Npc extends PositionComponent with HasGameRef<RabbitGame> {
+  final String message;
+  Npc({required Vector2 position, required Vector2 size, required this.message}) {
+    this.position = position;
+    this.size = size;
+  }
+  @override
+  void render(Canvas canvas) {
+    canvas.drawRect(size.toRect(), Paint()..color = Colors.blueAccent.withOpacity(0.3));
+  }
+}
+
+class Portal extends PositionComponent {
+  final String targetMap;
+  Portal({required Vector2 position, required Vector2 size, required this.targetMap}) {
+    this.position = position;
+    this.size = size;
+  }
+  @override
+  void render(Canvas canvas) {
+    canvas.drawRect(size.toRect(), Paint()..color = Colors.purpleAccent.withOpacity(0.3));
+  }
+}
+
+class Obstacle extends PositionComponent {
+  Obstacle({required Vector2 position, required Vector2 size}) {
+    this.position = position;
+    this.size = size;
+  }
+}
+
+class Decoration extends SpriteComponent {
+  Decoration({required Vector2 position, required Vector2 size, required Sprite sprite}) : super(
+    sprite: sprite, position: position, size: size, anchor: Anchor.bottomLeft,
+  );
+}
+
+// ✅ Class สำหรับไอเทมในฉาก
+class WorldItem extends PositionComponent {
+  final String name;
+  WorldItem({required Vector2 position, required Vector2 size, required this.name}) {
+    this.position = position;
+    this.size = size;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    // วาดกล่องสีเขียวแทนไอเทม (ถ้ามีรูป ให้เปลี่ยนเป็น SpriteComponent)
+    canvas.drawRect(size.toRect(), Paint()..color = Colors.greenAccent.withOpacity(0.7));
+    // วาดขอบ
+    canvas.drawRect(size.toRect(), Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 2);
+  }
+}
+
+class Fireball extends SpriteAnimationComponent with HasGameRef<RabbitGame>, CollisionCallbacks {
+  final Vector2 direction;
+  final double speed = 300;
+  final double lifetime = 1.5;
+  double elapsed = 0;
+
+  Fireball({required Vector2 position, required this.direction}) 
+      : super(position: position, size: Vector2(24, 24), anchor: Anchor.center);
+
+  @override
+  Future<void> onLoad() async {
+    add(RectangleHitbox(isSolid: true));
+  }
+
+  @override
+  void render(Canvas canvas) {
+    canvas.drawCircle(Offset(size.x/2, size.y/2), 8, Paint()..color = Colors.orange);
+    canvas.drawCircle(Offset(size.x/2, size.y/2), 5, Paint()..color = Colors.yellow);
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    position += direction * speed * dt;
+    elapsed += dt;
+    if (elapsed > lifetime) removeFromParent();
+  }
+
+  @override
+  void onCollisionStart(Set<Vector2> intersectionPoints, PositionComponent other) {
+    super.onCollisionStart(intersectionPoints, other);
+    if (other is Enemy) {
+      other.playHit();
+      other.die();
+      removeFromParent();
+    } else if (other is Obstacle) {
+      removeFromParent();
+    }
+  }
+}
