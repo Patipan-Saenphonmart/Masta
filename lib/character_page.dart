@@ -111,9 +111,14 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
                       ),
                     ),
                     
-                    // ปุ่มเริ่มเกม
+                    // ปุ่มเริ่มเกม — เพิ่ม bottom padding ตาม Navigation Bar
                     Padding(
-                      padding: const EdgeInsets.all(20),
+                      padding: EdgeInsets.only(
+                        left: 20,
+                        right: 20,
+                        top: 20,
+                        bottom: 20 + MediaQuery.of(context).padding.bottom,
+                      ),
                       child: SizedBox(
                         width: double.infinity,
                         height: 60,

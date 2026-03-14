@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="420" height="300" tilewidth="16" tileheight="16" infinite="0" nextlayerid="9" nextobjectid="182">
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="420" height="300" tilewidth="16" tileheight="16" infinite="0" nextlayerid="10" nextobjectid="186">
  <editorsettings>
   <chunksize width="64" height="64"/>
  </editorsettings>
@@ -106,8 +106,13 @@
   <object id="118" x="1509.5" y="536.5" width="90" height="106.5"/>
  </objectgroup>
  <objectgroup id="7" name="Decorations">
+  <properties>
+   <property name="Tree" value=""/>
+  </properties>
   <object id="166" gid="7683" x="429" y="599" width="140.667" height="184"/>
+  <object id="185" gid="7683" x="365" y="535.364" width="140.667" height="184"/>
   <object id="167" gid="7683" x="689.083" y="724" width="143" height="180.25"/>
+  <object id="184" gid="7683" x="937.25" y="660.5" width="143" height="180.25"/>
  </objectgroup>
  <objectgroup id="2" name="GameObjects">
   <object id="6" name="targetMap" type="Portal" x="643.424" y="481.394" width="23.5" height="33.5">

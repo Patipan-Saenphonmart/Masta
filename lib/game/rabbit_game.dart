@@ -12,6 +12,7 @@ import 'components/rabbit.dart';
 import 'components/enemy.dart';
 import 'overlays/question_overlay.dart';
 import 'overlays/skill_overlay.dart';
+import 'components/tree.dart';
 
 // =====================================================================
 // 1. WIDGET: Game Page & UI Overlays
@@ -496,6 +497,7 @@ class RabbitGame extends FlameGame
       final newMap = await TiledComponent.load(mapName, Vector2(16, 16));
       newMap.priority = 0;
 
+      // ลบของเก่าทั้งหมด
       world.children.whereType<TiledComponent>().forEach((m) => m.removeFromParent());
       world.children.whereType<Npc>().forEach((n) => n.removeFromParent());
       world.children.whereType<Portal>().forEach((p) => p.removeFromParent());
@@ -503,21 +505,26 @@ class RabbitGame extends FlameGame
       world.children.whereType<Obstacle>().forEach((o) => o.removeFromParent());
       world.children.whereType<Decoration>().forEach((d) => d.removeFromParent());
       world.children.whereType<Fireball>().forEach((f) => f.removeFromParent());
-      // ✅ ลบไอเทมเก่า
       world.children.whereType<WorldItem>().forEach((i) => i.removeFromParent());
+      
+      // ✅ เพิ่ม: ลบ Tree ของเก่าออกด้วย
+      world.children.whereType<Tree>().forEach((t) => t.removeFromParent());
 
       map = newMap;
       world.add(map);
 
       rabbit.position = targetSpawnPosition;
 
+      // ... (Code ส่วนโหลด GameObjects / Collisions เหมือนเดิม ข้ามไปส่วน Decorations เลย) ...
+      
       final objLayer = map.tileMap.getLayer<ObjectGroup>('GameObjects');
       if (objLayer != null) {
-        for (final obj in objLayer.objects) {
+        // ... (วางโค้ดส่วน GameObjects เดิมของคุณที่นี่) ...
+         for (final obj in objLayer.objects) {
           final type = obj.type.isNotEmpty ? obj.type : obj.class_;
           switch (type) {
             case 'NPC':
-              world.add(Npc(
+               world.add(Npc(
                 position: Vector2(obj.x, obj.y),
                 size: Vector2(obj.width, obj.height),
                 message: obj.properties.getValue<String>('message') ?? 'สวัสดี!',
@@ -536,7 +543,6 @@ class RabbitGame extends FlameGame
                 targetMap: obj.properties.getValue<String>('targetMap') ?? 'house_interior.tmx',
               )..priority = 5);
               break;
-            // ✅ Spawn Item: สร้างไอเทมจาก Tiled
             case 'Item':
               world.add(WorldItem(
                 position: Vector2(obj.x, obj.y),
@@ -558,17 +564,32 @@ class RabbitGame extends FlameGame
         }
       }
 
+      // ✅ จุดแก้ไขหลัก: ตรวจสอบ Type ใน Decorations Layer
       final decoLayer = map.tileMap.getLayer<ObjectGroup>('Decorations');
       if (decoLayer != null) {
         for (final obj in decoLayer.objects) {
           if (obj.gid != null) {
             final sprite = await _getSpriteFromGid(obj.gid!, map);
             if (sprite != null) {
-              world.add(Decoration(
-                position: Vector2(obj.x, obj.y),
-                size: Vector2(obj.width, obj.height),
-                sprite: sprite,
-              ));
+              
+              // ✅ เช็คว่าเป็น Tree หรือไม่ (รองรับทั้ง Type และ Class สำหรับ Tiled เวอร์ชันใหม่/เก่า)
+              final type = obj.type.isNotEmpty ? obj.type : obj.class_;
+
+              if (type == 'Tree') {
+                // สร้าง Tree Component (แบบมองทะลุได้)
+                world.add(Tree(
+                  position: Vector2(obj.x, obj.y),
+                  size: Vector2(obj.width, obj.height),
+                  sprite: sprite,
+                ));
+              } else {
+                // สร้าง Decoration ธรรมดา
+                world.add(Decoration(
+                  position: Vector2(obj.x, obj.y),
+                  size: Vector2(obj.width, obj.height),
+                  sprite: sprite,
+                ));
+              }
             }
           }
         }
@@ -581,7 +602,7 @@ class RabbitGame extends FlameGame
     }
   }
 
-  Future<Sprite?> _getSpriteFromGid(int gid, TiledComponent map) async {
+Future<Sprite?> _getSpriteFromGid(int gid, TiledComponent map) async {
     final tileset = map.tileMap.map.tilesets.lastWhere(
       (ts) => ts.firstGid != null && gid >= ts.firstGid!,
       orElse: () => map.tileMap.map.tilesets.first,
@@ -610,7 +631,46 @@ class RabbitGame extends FlameGame
       );
     }
     return null;
-  }
+  } 
+
+  // -------------------------------------------------------------------
+  // ส่วนที่ 2: แก้ไข Update เพื่อให้ลำดับ Layer ของต้นไม้ทำงานถูกต้อง
+  // -------------------------------------------------------------------
+  // @override
+  // void update(double dt) {
+  //   super.update(dt);
+
+  //   if (isLoading) return;
+  //   if (collisionCooldown > 0) collisionCooldown -= dt;
+  //   if (isDashing) {
+  //     dashTimer -= dt;
+  //     if (dashTimer <= 0) isDashing = false;
+  //   }
+  //   if (freezeTimer > 0) freezeTimer -= dt;
+
+  //   // ✅ เพิ่มเงื่อนไขเช็ค Tree เข้าไปในลูปจัดลำดับความลึก (Z-Index)
+  //   world.children.whereType<PositionComponent>().forEach((component) {
+  //     if (component is Rabbit || 
+  //         component is Enemy || 
+  //         component is Npc || 
+  //         component is Decoration || 
+  //         component is WorldItem || 
+  //         component is Tree) { // <--- เพิ่ม Tree ตรงนี้!
+        
+  //       double bottomY = component.position.y;
+  //       if (component.anchor == Anchor.center) {
+  //         bottomY += component.size.y / 2;
+  //       }
+  //       component.priority = bottomY.toInt();
+  //     }
+  //   });
+
+  //   if (!inQuestion && !isDialogActive) {
+  //     _updatePlayer(dt);
+  //     _checkInteractions(); 
+  //     _updateEnemies(dt);
+  //   }
+  // }
 
   // -------------------------------------------------------------------
   // UI & Input Callbacks
