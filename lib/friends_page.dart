@@ -5,19 +5,22 @@ class Friends extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // กำหนด Palette สีคร่าวๆ ตามรูป (เมื่อได้รูปจริงมาใส่ สีพวกนี้จะถูกแทนที่ด้วยรูปภาพ)
-    const Color bgColor = Color(0xFF2E5A1C); // สีเขียวป่า
+    // กำหนด Palette สี
     const Color panelColor = Color(0xFFFFF6D8); // สีครีมกระดาษ
     const Color woodColor = Color(0xFF8B5A2B); // สีไม้
     const Color darkText = Color(0xFF4A3225); // สีน้ำตาลเข้ม
 
     return Scaffold(
-      backgroundColor: bgColor, // พื้นหลังแอป (เปลี่ยนเป็น Image.asset ทีหลังได้)
-      body: SafeArea(
-        child: Stack(
-          children: [
-            // --- ส่วนของ Background Image (ถ้ามีรูปป่า Pixel art ให้ Un-comment บรรทัดล่าง) ---
-            // Positioned.fill(child: Image.asset('assets/forest_bg.png', fit: BoxFit.cover)),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg_quiz.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Stack(
+            children: [
             
             Column(
               children: [
@@ -254,6 +257,7 @@ class Friends extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

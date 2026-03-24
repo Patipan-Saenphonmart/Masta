@@ -1,7 +1,8 @@
 import 'dart:math';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../supabase_config.dart'; // เรียกใช้ config จาก root
-import '../rabbit_game.dart'; // เรียกใช้ตัวเกม
+import '../../supabase_config.dart';
+import '../rabbit_game.dart';
 
 class QuestionOverlay extends StatefulWidget {
   final RabbitGame game;
@@ -12,34 +13,107 @@ class QuestionOverlay extends StatefulWidget {
   State<QuestionOverlay> createState() => _QuestionOverlayState();
 }
 
-class _QuestionOverlayState extends State<QuestionOverlay> {
+class _QuestionOverlayState extends State<QuestionOverlay>
+    with TickerProviderStateMixin {
   List<Map<String, dynamic>> questions = [];
   late Map<String, dynamic> current;
   bool loading = true;
   bool answered = false;
   String? selectedChoice;
 
-  // สร้าง Random instance ไว้ใช้ซ้ำ
+  // Timer system
+  static const int maxSeconds = 15;
+  int remainingSeconds = maxSeconds;
+  Timer? _timer;
+
+  // Animations
+  late AnimationController _shakeController;
+  late Animation<double> _shakeAnimation;
+  late AnimationController _resultController;
+  late Animation<double> _resultScale;
+
   final Random _rng = Random();
 
   @override
   void initState() {
     super.initState();
+
+    // Shake animation (for wrong answer)
+    _shakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _shakeAnimation = Tween<double>(begin: 0, end: 12).animate(
+      CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
+    );
+
+    // Result scale animation
+    _resultController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _resultScale = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _resultController, curve: Curves.elasticOut),
+    );
+
     loadQuestions();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _shakeController.dispose();
+    _resultController.dispose();
+    super.dispose();
+  }
+
+  void _startTimer() {
+    remainingSeconds = maxSeconds;
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        remainingSeconds--;
+      });
+      if (remainingSeconds <= 0) {
+        timer.cancel();
+        // หมดเวลา = ตอบผิด
+        if (!answered) {
+          _onTimeUp();
+        }
+      }
+    });
+  }
+
+  void _onTimeUp() {
+    setState(() {
+      answered = true;
+      selectedChoice = null; // ไม่ได้เลือกข้อไหน
+    });
+    _shakeController.forward(from: 0);
+    _resultController.forward(from: 0);
+    widget.game.onAnswerSelected(false);
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        widget.game.overlays.remove('QuestionOverlay');
+        widget.game.resumeEngine();
+      }
+    });
   }
 
   Future<void> loadQuestions() async {
     try {
-      // ดึงคำถามจาก Supabase
       final data = await QuestionService.fetchQuestions(widget.topic);
       if (!mounted) return;
 
       if (data.isNotEmpty) {
         questions = data;
-        // ✅ สุ่มคำถาม 1 ข้อจาก Database
         current = questions[_rng.nextInt(questions.length)];
       } else {
-        // Fallback กรณีไม่มีข้อมูล
         _useFallbackQuestions();
       }
     } catch (e) {
@@ -50,6 +124,7 @@ class _QuestionOverlayState extends State<QuestionOverlay> {
         setState(() {
           loading = false;
         });
+        _startTimer(); // ✅ เริ่ม Timer หลังโหลดเสร็จ
       }
     }
   }
@@ -74,48 +149,57 @@ class _QuestionOverlayState extends State<QuestionOverlay> {
         'answer': 'เข้มขึ้น'
       }
     ];
-    // ✅ แก้ไข: ให้สุ่มคำถามจากรายการ Fallback ด้วย (จากเดิม fix ที่ index 0)
     current = questions[_rng.nextInt(questions.length)];
   }
 
   void select(String choice) {
     if (answered) return;
 
+    _timer?.cancel();
+    final correct = choice == current['answer'];
+
     setState(() {
       answered = true;
       selectedChoice = choice;
     });
 
-    final correct = choice == current['answer'];
+    if (correct) {
+      _resultController.forward(from: 0);
+    } else {
+      _shakeController.forward(from: 0);
+      _resultController.forward(from: 0);
+    }
 
-    // ส่งผลลัพธ์กลับไปที่เกม
     widget.game.onAnswerSelected(correct);
 
-    // รอสักครู่แล้วปิด Overlay
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         widget.game.overlays.remove('QuestionOverlay');
-        // Resume game logic if needed
         widget.game.resumeEngine();
       }
     });
   }
 
-  // สร้าง Widget ปุ่มสไตล์ Pixel
+  // Timer Color
+  Color _timerColor() {
+    if (remainingSeconds > 10) return const Color(0xFF66BB6A);
+    if (remainingSeconds > 5) return const Color(0xFFFFB74D);
+    return const Color(0xFFEF5350);
+  }
+
+  // ปุ่ม Choice สไตล์ Pixel
   Widget _buildPixelButton(
       String text, VoidCallback? onPressed, Color bgColor, Color borderColor) {
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
         color: bgColor,
+        borderRadius: BorderRadius.circular(8),
         border: Border(
-          top: BorderSide(color: borderColor, width: 4),
-          left: BorderSide(color: borderColor, width: 4),
-          right: BorderSide(
-              color: borderColor.withOpacity(0.5), width: 4), // เงาด้านขวา
-          bottom: BorderSide(
-              color: borderColor.withOpacity(0.5),
-              width: 6), // เงาด้านล่างหนาหน่อย
+          top: BorderSide(color: borderColor, width: 3),
+          left: BorderSide(color: borderColor, width: 3),
+          right: BorderSide(color: borderColor.withOpacity(0.5), width: 3),
+          bottom: BorderSide(color: borderColor.withOpacity(0.5), width: 5),
         ),
       ),
       child: Material(
@@ -123,6 +207,7 @@ class _QuestionOverlayState extends State<QuestionOverlay> {
         child: InkWell(
           onTap: onPressed,
           splashColor: Colors.white24,
+          borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             child: Row(
@@ -134,9 +219,9 @@ class _QuestionOverlayState extends State<QuestionOverlay> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontFamily: 'Courier',
-                      fontSize: 18,
+                      fontSize: 17,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF3E2723), // สีน้ำตาลเข้ม
+                      color: Color(0xFF3E2723),
                     ),
                   ),
                 ),
@@ -150,9 +235,8 @@ class _QuestionOverlayState extends State<QuestionOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    // สีธีม Pixel Art (Cream & Brown)
-    const bgColor = Color(0xFFFFF8E1); // สีครีมกระดาษ
-    const borderColor = Color(0xFF5D4037); // สีน้ำตาลเข้ม
+    const bgColor = Color(0xFFFFF8E1);
+    const borderColor = Color(0xFF5D4037);
 
     if (loading) {
       return Container(
@@ -160,106 +244,209 @@ class _QuestionOverlayState extends State<QuestionOverlay> {
         child: const Center(
           child: CircularProgressIndicator(
             color: Colors.white,
-            strokeWidth: 6, // เส้นหนาๆ ให้ดู retro
+            strokeWidth: 6,
           ),
         ),
       );
     }
 
     final choices = List<String>.from(current['choices'] ?? []);
+    final isCorrect = selectedChoice == current['answer'];
 
     return Material(
-      color: Colors.black54, // พื้นหลังมืดจางๆ
+      color: Colors.black54,
       child: Center(
-        child: SingleChildScrollView(
-          child: Container(
-            width: 360,
-            padding: const EdgeInsets.all(4), // Padding สำหรับขอบนอกสุด
-            decoration: const BoxDecoration(
-              color: borderColor, // ขอบสีน้ำตาลเข้ม
-            ),
+        child: AnimatedBuilder(
+          animation: _shakeAnimation,
+          builder: (context, child) {
+            final shakeOffset =
+                answered && !isCorrect
+                    ? sin(_shakeController.value * pi * 4) *
+                        _shakeAnimation.value
+                    : 0.0;
+            return Transform.translate(
+              offset: Offset(shakeOffset, 0),
+              child: child,
+            );
+          },
+          child: SingleChildScrollView(
             child: Container(
-              padding: const EdgeInsets.all(20),
+              width: 360,
+              padding: const EdgeInsets.all(4),
               decoration: const BoxDecoration(
-                color: bgColor, // พื้นหลังสีครีม
-                border: Border.symmetric(
-                  vertical: BorderSide(
-                      color: Color(0xFFD7CCC8), width: 4), // ลวดลายขอบใน
-                ),
+                color: borderColor,
+                borderRadius: BorderRadius.all(Radius.circular(12)),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // --- Header / Question Icon ---
-                  Container(
-                    width: 60,
-                    height: 60,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFB74D), // สีส้ม
-                      border: Border.all(color: borderColor, width: 4),
-                    ),
-                    child: const Icon(Icons.question_mark,
-                        size: 40, color: borderColor),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.all(Radius.circular(8)),
+                  border: Border.symmetric(
+                    vertical: BorderSide(color: Color(0xFFD7CCC8), width: 4),
                   ),
-
-                  // --- Question Text ---
-                  Text(
-                    current['question_text'] ?? '',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontFamily: 'Courier',
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      color: borderColor,
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // --- Choices ---
-                  ...choices.map((choice) {
-                    Color btnColor =
-                        const Color(0xFFFFCC80); // สีส้มอ่อน (ปกติ)
-                    Color btnBorder = borderColor;
-
-                    if (answered) {
-                      if (choice == current['answer']) {
-                        btnColor = const Color(0xFF66BB6A); // เขียว (ถูก)
-                      } else if (choice == selectedChoice) {
-                        btnColor = const Color(0xFFEF5350); // แดง (ผิด)
-                      } else {
-                        btnColor = Colors.grey.shade300; // เทา (ไม่ได้เลือก)
-                        btnBorder = Colors.grey.shade600;
-                      }
-                    }
-
-                    return _buildPixelButton(
-                      choice,
-                      answered ? null : () => select(choice),
-                      btnColor,
-                      btnBorder,
-                    );
-                  }),
-
-                  if (answered)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16.0),
-                      child: Text(
-                        selectedChoice == current['answer']
-                            ? "ถูกต้อง! ไปลุยกันต่อ!"
-                            : "ผิดพลาด! ระวังตัวด้วย!",
-                        style: TextStyle(
-                          fontFamily: 'Courier',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: selectedChoice == current['answer']
-                              ? Colors.green[800]
-                              : Colors.red[800],
-                        ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // --- Timer Bar ---
+                    Container(
+                      width: double.infinity,
+                      height: 28,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.black26,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: borderColor, width: 2),
+                      ),
+                      child: Stack(
+                        children: [
+                          AnimatedFractionallySizedBox(
+                            duration: const Duration(milliseconds: 900),
+                            curve: Curves.easeInOut,
+                            widthFactor: (remainingSeconds / maxSeconds)
+                                .clamp(0.0, 1.0),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: _timerColor(),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ),
+                          Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.timer,
+                                    size: 16,
+                                    color: remainingSeconds <= 5
+                                        ? Colors.red.shade900
+                                        : borderColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "$remainingSeconds วินาที",
+                                  style: TextStyle(
+                                    fontFamily: 'Courier',
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: remainingSeconds <= 5
+                                        ? Colors.red.shade900
+                                        : borderColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                ],
+
+                    // --- Question Icon ---
+                    Container(
+                      width: 50,
+                      height: 50,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFB74D),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: borderColor, width: 3),
+                      ),
+                      child: const Icon(Icons.question_mark,
+                          size: 32, color: borderColor),
+                    ),
+
+                    // --- Question Text ---
+                    Text(
+                      current['question_text'] ?? '',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: 'Courier',
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        color: borderColor,
+                        height: 1.3,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // --- Choices ---
+                    ...choices.map((choice) {
+                      Color btnColor = const Color(0xFFFFCC80);
+                      Color btnBorder = borderColor;
+
+                      if (answered) {
+                        if (choice == current['answer']) {
+                          btnColor = const Color(0xFF66BB6A);
+                        } else if (choice == selectedChoice) {
+                          btnColor = const Color(0xFFEF5350);
+                        } else {
+                          btnColor = Colors.grey.shade300;
+                          btnBorder = Colors.grey.shade600;
+                        }
+                      }
+
+                      return _buildPixelButton(
+                        choice,
+                        answered ? null : () => select(choice),
+                        btnColor,
+                        btnBorder,
+                      );
+                    }),
+
+                    // --- Result Animation ---
+                    if (answered)
+                      ScaleTransition(
+                        scale: _resultScale,
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 16),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isCorrect
+                                ? Colors.green.shade50
+                                : Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isCorrect
+                                  ? Colors.green.shade700
+                                  : Colors.red.shade700,
+                              width: 2,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isCorrect
+                                    ? Icons.check_circle
+                                    : Icons.cancel,
+                                color: isCorrect
+                                    ? Colors.green.shade700
+                                    : Colors.red.shade700,
+                                size: 28,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                isCorrect
+                                    ? "ถูกต้อง! ไปลุยต่อ!"
+                                    : selectedChoice == null
+                                        ? "หมดเวลา!"
+                                        : "ผิดพลาด! ระวังตัว!",
+                                style: TextStyle(
+                                  fontFamily: 'Courier',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: isCorrect
+                                      ? Colors.green[800]
+                                      : Colors.red[800],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

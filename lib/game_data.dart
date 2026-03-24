@@ -98,4 +98,63 @@ class GameData {
   static void levelUp() {
     playerLevel++;
   }
+
+  // =====================================================================
+  // ✅ Quiz Battle System Data
+  // =====================================================================
+
+  /// Combo: ตอบถูกติดต่อกัน
+  static int comboCount = 0;
+  static int maxCombo = 0;
+
+  /// สถิติการตอบคำถาม: { 'ฟิสิกส์': {'correct': 5, 'wrong': 2, 'total': 7} }
+  static Map<String, Map<String, int>> questionStats = {};
+
+  /// บันทึกความรู้ (Knowledge Journal)
+  static List<Map<String, dynamic>> knowledgeJournal = [];
+
+  /// ค่าความชำนาญแต่ละวิชา (0-100)
+  static Map<String, int> subjectMastery = {
+    'ฟิสิกส์': 0,
+    'เคมี': 0,
+    'ชีววิทยา': 0,
+    'คณิตศาสตร์': 0,
+  };
+
+  /// บันทึกผลการตอบคำถาม
+  static void recordAnswer(String subject, bool correct) {
+    questionStats.putIfAbsent(subject, () => {'correct': 0, 'wrong': 0, 'total': 0});
+    final stats = questionStats[subject]!;
+    stats['total'] = (stats['total'] ?? 0) + 1;
+    if (correct) {
+      stats['correct'] = (stats['correct'] ?? 0) + 1;
+      comboCount++;
+      if (comboCount > maxCombo) maxCombo = comboCount;
+      // เพิ่ม mastery
+      subjectMastery[subject] = ((subjectMastery[subject] ?? 0) + 2).clamp(0, 100);
+    } else {
+      stats['wrong'] = (stats['wrong'] ?? 0) + 1;
+      comboCount = 0; // Reset combo
+      // ลด mastery เล็กน้อย
+      subjectMastery[subject] = ((subjectMastery[subject] ?? 0) - 1).clamp(0, 100);
+    }
+  }
+
+  /// บันทึกคำถามลง Knowledge Journal
+  static void recordQuestion(Map<String, dynamic> question, String subject, bool answeredCorrectly) {
+    knowledgeJournal.add({
+      'question': question,
+      'subject': subject,
+      'correct': answeredCorrectly,
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+  }
+
+  /// คำนวณ combo multiplier
+  static double get comboMultiplier {
+    if (comboCount >= 5) return 2.0;
+    if (comboCount >= 3) return 1.5;
+    if (comboCount >= 2) return 1.2;
+    return 1.0;
+  }
 }

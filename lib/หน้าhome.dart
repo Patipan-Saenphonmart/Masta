@@ -8,8 +8,9 @@ import 'character_page.dart';
 import 'event_page.dart';
 import 'rank_page.dart';
 import 'friends_page.dart';
+import 'game_data.dart'; // Import GameData เพื่อใช้ค่าจริง
 
-// ✅ เปลี่ยนเป็น StatefulWidget เพื่อรองรับ Animation
+
 class LearningGameHome extends StatefulWidget {
   const LearningGameHome({super.key});
 
@@ -32,7 +33,7 @@ class _LearningGameHomeState extends State<LearningGameHome>
     // สมมติว่ามี 4 เฟรม, เฟรมละ 150ms = 600ms (ปรับแก้ตามจำนวนเฟรมจริงของภาพ)
     _spriteController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 1650),
     )..repeat(); // เล่นวนลูปไปเรื่อยๆ
   }
 
@@ -367,6 +368,30 @@ class _LearningGameHomeState extends State<LearningGameHome>
                       const SizedBox(width: 10),
                       _buildTopTabButton("คลังของ", Icons.backpack, false),
                       const Spacer(),
+                      // ✅ Level Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 6),
+                        margin: const EdgeInsets.only(right: 8),
+                        decoration: BoxDecoration(
+                            color: Colors.redAccent.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: Colors.red.shade800, width: 2)),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.military_tech,
+                                color: Colors.white, size: 18),
+                            const SizedBox(width: 4),
+                            Text("Lv.${GameData.playerLevel}",
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                      // ✅ เงิน — ใช้ค่าจริงจาก GameData
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 6),
@@ -375,13 +400,13 @@ class _LearningGameHomeState extends State<LearningGameHome>
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                                 color: const Color(0xFFA1887F), width: 2)),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(Icons.monetization_on,
+                            const Icon(Icons.monetization_on,
                                 color: Color(0xFFFFEB3B), size: 20),
-                            SizedBox(width: 6),
-                            Text("999",
-                                style: TextStyle(
+                            const SizedBox(width: 6),
+                            Text("${GameData.playerGold}",
+                                style: const TextStyle(
                                     color: Color(0xFFDCEDC8),
                                     fontWeight: FontWeight.w900,
                                     fontSize: 16)),
@@ -450,30 +475,47 @@ class _LearningGameHomeState extends State<LearningGameHome>
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
+                          // ✅ ปุ่ม Friends ใหญ่ขึ้น + มีข้อความ
                           GestureDetector(
                             onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(builder: (context) => const Friends()));
-
+                                MaterialPageRoute(builder: (context) => const Friends()),
+                              ).then((_) => setState(() {}));
                             },
-                          child:  Container(
-                            height: 50,
-                            width: 50,
-                            margin: const EdgeInsets.only(bottom: 8),
+                          child: Container(
+                            height: 70,
+                            width: 70,
+                            margin: const EdgeInsets.only(bottom: 0),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF8D6E63),
-                              borderRadius: BorderRadius.circular(12),
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFA1887F), Color(0xFF795548)],
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                  color: const Color(0xFF5D4037), width: 2),
+                                  color: const Color(0xFF5D4037), width: 3),
                               boxShadow: [
                                 BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
-                                    offset: const Offset(0, 4))
+                                    color: Colors.black.withOpacity(0.5),
+                                    offset: const Offset(0, 6),
+                                    blurRadius: 2)
                               ],
                             ),
-                            child: const Icon(Icons.group,
-                                color: Color(0xFFDCEDC8), size: 28),
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.group,
+                                    color: Color(0xFFDCEDC8), size: 30),
+                                SizedBox(height: 2),
+                                Text("เพื่อน",
+                                    style: TextStyle(
+                                        color: Color(0xFFDCEDC8),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900)),
+                              ],
+                            ),
                           ),),
                           const SizedBox(width: 12),
                           Expanded(child: _buildPlayButton()),

@@ -1,4 +1,4 @@
-import 'dart:ui'; // สำหรับใช้ Colors
+// สำหรับใช้ Colors
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'package:flutter/material.dart';

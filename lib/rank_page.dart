@@ -24,14 +24,12 @@ class Rank extends StatelessWidget {
           Container(
             width: double.infinity,
             height: double.infinity,
-            color: const Color(0xFF2E7D32), // สีเขียวป่า (Placeholder)
-            // TODO: เปลี่ยนเป็นใส่รูป Background ตรงนี้
-            // decoration: BoxDecoration(
-            //   image: DecorationImage(
-            //     image: AssetImage('assets/images/forest_bg.png'),
-            //     fit: BoxFit.cover,
-            //   ),
-            // ),
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/bg_quiz.png'),
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
 
           // -----------------------------------------------------------

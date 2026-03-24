@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../rabbit_game.dart';
-import '../../game_data.dart'; // ✅ เชื่อม GameData
+import '../../game_data.dart';
 
 class SkillOverlay extends StatefulWidget {
   final RabbitGame game;
@@ -10,11 +10,21 @@ class SkillOverlay extends StatefulWidget {
   State<SkillOverlay> createState() => _SkillOverlayState();
 }
 
-class _SkillOverlayState extends State<SkillOverlay> {
+class _SkillOverlayState extends State<SkillOverlay>
+    with SingleTickerProviderStateMixin {
   Offset? startDrag;
   Offset knobOffset = Offset.zero;
-  final double padSize = 140; 
+  final double padSize = 140;
   final double knobSize = 60;
+
+  // ✅ Cooldown tracking
+  final Map<String, double> _cooldowns = {};
+  final Map<String, double> _maxCooldowns = {
+    'fireball': 3.0,
+    'heal': 8.0,
+    'dash': 2.0,
+    'ice_blast': 5.0,
+  };
 
   // Joystick Logic
   void onPanStart(DragStartDetails d) {
@@ -36,8 +46,7 @@ class _SkillOverlayState extends State<SkillOverlay> {
 
     final vx = (knobOffset.dx / maxRadius).clamp(-1.0, 1.0);
     final vy = (knobOffset.dy / maxRadius).clamp(-1.0, 1.0);
-    
-    // ✅ แก้ไข: เรียกใช้ joystickDirection โดยตรงแทนการใช้ setJoystickDirection
+
     widget.game.joystickDirection.setValues(vx, vy);
   }
 
@@ -46,30 +55,124 @@ class _SkillOverlayState extends State<SkillOverlay> {
       knobOffset = Offset.zero;
     });
     startDrag = null;
-    
-    // ✅ แก้ไข: รีเซ็ตค่า joystickDirection โดยตรง
+
     widget.game.joystickDirection.setZero();
   }
 
-  // ✅ สร้างปุ่มสกิล
-  Widget _buildSkillButton(String skillId, IconData icon, Color color) {
+  void _onSkillTap(String skillId) {
+    // เช็ค cooldown
+    if ((_cooldowns[skillId] ?? 0) > 0) return;
+
+    widget.game.activateSkill(skillId);
+
+    // ตั้ง cooldown
+    final maxCd = _maxCooldowns[skillId] ?? 2.0;
+    setState(() {
+      _cooldowns[skillId] = maxCd;
+    });
+
+    // Tick cooldown ทุก 100ms
+    _startCooldownTick(skillId);
+  }
+
+  void _startCooldownTick(String skillId) {
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (!mounted) return;
+      setState(() {
+        _cooldowns[skillId] = (_cooldowns[skillId] ?? 0) - 0.1;
+        if ((_cooldowns[skillId] ?? 0) <= 0) {
+          _cooldowns[skillId] = 0;
+        }
+      });
+      if ((_cooldowns[skillId] ?? 0) > 0) {
+        _startCooldownTick(skillId);
+      }
+    });
+  }
+
+  // ✅ ปุ่มสกิลพร้อม cooldown overlay + label
+  Widget _buildSkillButton(String skillId, String label, IconData icon, Color color) {
+    final cd = _cooldowns[skillId] ?? 0;
+    final maxCd = _maxCooldowns[skillId] ?? 2.0;
+    final isOnCooldown = cd > 0;
+    final cdPercent = isOnCooldown ? (cd / maxCd).clamp(0.0, 1.0) : 0.0;
+
     return Container(
-      margin: const EdgeInsets.only(top: 10),
-      child: GestureDetector(
-        onTap: () {
-          widget.game.activateSkill(skillId);
-        },
-        child: Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.9),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
-            boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 2))],
+      margin: const EdgeInsets.only(top: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () => _onSkillTap(skillId),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Base button
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: isOnCooldown ? Colors.grey.shade700 : color.withOpacity(0.9),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: isOnCooldown ? Colors.grey.shade500 : Colors.white,
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: isOnCooldown ? Colors.black26 : Colors.black45,
+                        blurRadius: 4,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Icon(icon,
+                      color: isOnCooldown ? Colors.white38 : Colors.white,
+                      size: 28),
+                ),
+                // Cooldown overlay (circular wipe)
+                if (isOnCooldown)
+                  SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: CircularProgressIndicator(
+                      value: 1.0 - cdPercent,
+                      strokeWidth: 4,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                          color.withOpacity(0.7)),
+                      backgroundColor: Colors.transparent,
+                    ),
+                  ),
+                // Cooldown text
+                if (isOnCooldown)
+                  Text(
+                    cd.toStringAsFixed(0),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(color: Colors.black, offset: Offset(1, 1), blurRadius: 2),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ),
-          child: Icon(icon, color: Colors.white, size: 30),
-        ),
+          const SizedBox(height: 2),
+          // ✅ Skill label
+          Text(
+            label,
+            style: TextStyle(
+              color: isOnCooldown ? Colors.white38 : Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              shadows: const [
+                Shadow(color: Colors.black54, offset: Offset(1, 1), blurRadius: 2),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -99,7 +202,6 @@ class _SkillOverlayState extends State<SkillOverlay> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ✅ โชว์ HP จริง
                     Text(
                       "HP ${widget.game.playerHP}/${widget.game.maxHP}",
                       style: const TextStyle(
@@ -124,11 +226,11 @@ class _SkillOverlayState extends State<SkillOverlay> {
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: CustomPaint(
-                              size: Size(150, 16),
+                              size: const Size(150, 16),
                               painter: _HpBarPainter(
-                                widget.game.playerHP, 
+                                widget.game.playerHP,
                                 widget.game.maxHP,
-                                hpColor
+                                hpColor,
                               ),
                             ),
                           ),
@@ -175,7 +277,10 @@ class _SkillOverlayState extends State<SkillOverlay> {
                         shape: BoxShape.circle,
                         border: Border.all(color: borderColor, width: 4),
                         boxShadow: const [
-                          BoxShadow(color: Colors.black45, blurRadius: 0, offset: Offset(0, 6))
+                          BoxShadow(
+                              color: Colors.black45,
+                              blurRadius: 0,
+                              offset: Offset(0, 6))
                         ],
                         gradient: const RadialGradient(
                           colors: [Colors.white, Color(0xFFFFB74D)],
@@ -191,25 +296,24 @@ class _SkillOverlayState extends State<SkillOverlay> {
           ),
         ),
 
-        // --- Skill Buttons (ขวาล่าง) ---
+        // --- Skill Buttons (ขวาล่าง) + Labels + Cooldown ---
         Positioned(
           right: 24,
           bottom: 40,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ✅ เช็คจาก GameData.equippedSkills เพื่อแสดงเฉพาะสกิลที่ติดตั้ง
-              if (GameData.isSkillEquipped('fireball')) 
-                _buildSkillButton('fireball', Icons.whatshot, Colors.orange),
-              
-              if (GameData.isSkillEquipped('heal')) 
-                _buildSkillButton('heal', Icons.favorite, Colors.pinkAccent),
-              
-              if (GameData.isSkillEquipped('dash')) 
-                _buildSkillButton('dash', Icons.run_circle, Colors.blueAccent),
-                
-              if (GameData.isSkillEquipped('ice_blast')) 
-                _buildSkillButton('ice_blast', Icons.ac_unit, Colors.cyan),
+              if (GameData.isSkillEquipped('fireball'))
+                _buildSkillButton('fireball', 'ไฟ', Icons.whatshot, Colors.orange),
+
+              if (GameData.isSkillEquipped('heal'))
+                _buildSkillButton('heal', 'ฮีล', Icons.favorite, Colors.pinkAccent),
+
+              if (GameData.isSkillEquipped('dash'))
+                _buildSkillButton('dash', 'พุ่ง', Icons.run_circle, Colors.blueAccent),
+
+              if (GameData.isSkillEquipped('ice_blast'))
+                _buildSkillButton('ice_blast', 'น้ำแข็ง', Icons.ac_unit, Colors.cyan),
             ],
           ),
         ),
@@ -228,7 +332,7 @@ class _HpBarPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final hpPercent = (currentHP / maxHP).clamp(0.0, 1.0);
-    
+
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.fill;
@@ -240,8 +344,9 @@ class _HpBarPainter extends CustomPainter {
     final highlightPaint = Paint()
       ..color = Colors.white.withOpacity(0.3)
       ..style = PaintingStyle.fill;
-    
-    canvas.drawRect(Rect.fromLTWH(0, 0, fillWidth, size.height * 0.4), highlightPaint);
+
+    canvas.drawRect(
+        Rect.fromLTWH(0, 0, fillWidth, size.height * 0.4), highlightPaint);
   }
 
   @override

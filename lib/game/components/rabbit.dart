@@ -137,11 +137,6 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
     }
   }
 
-  @override
-  void onCollision(Set<Vector2> intersectionPoints, PositionComponent other) {
-    super.onCollision(intersectionPoints, other);
-    // เพิ่ม Logic ชนกำแพงหรือศัตรูที่นี่ถ้าต้องการ
-  }
   
   void playHit() {
     if (_isDead) return;

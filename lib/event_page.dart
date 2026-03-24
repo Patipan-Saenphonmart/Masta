@@ -6,50 +6,44 @@ class Event extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // สีพื้นหลังสมมติ (สีเขียวป่า) - คุณสามารถเปลี่ยนเป็นรูปภาพ Background ได้ทีหลัง
-      backgroundColor: const Color(0xFF2E7D32), 
-      body: SafeArea(
-        child: Column(
-          children: [
-            // --- ส่วนหัว (Header) ---
-            _buildHeader(context),
-
-            // --- พื้นที่เนื้อหาที่เลื่อนได้ (Scrollable) ---
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    // 1. แบนเนอร์กิจกรรม (กล่องสมบัติ)
-                    _buildBannerPlaceholder(),
-
-                    const SizedBox(height: 20),
-
-                    // 2. การ์ดภารกิจที่ 1: สำรวจป่า
-                    _buildMissionCard(
-                      title: "ภารกิจรายวัน: สำรวจป่า",
-                      current: 0,
-                      max: 3,
-                      iconPlaceholder: Icons.handyman, // ไอคอนดาบ (สมมติ)
-                    ),
-
-                    const SizedBox(height: 15),
-
-                    // 3. การ์ดภารกิจที่ 2: ท้าทายบอส
-                    _buildMissionCard(
-                      title: "ท้าทายบอส: พิทักษ์ป่า",
-                      current: 0,
-                      max: 1,
-                      iconPlaceholder: Icons.security, // ไอคอนโล่ (สมมติ)
-                    ),
-                  ],
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('assets/images/bg_quiz.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      _buildBannerPlaceholder(),
+                      const SizedBox(height: 20),
+                      _buildMissionCard(
+                        title: "ภารกิจรายวัน: สำรวจป่า",
+                        current: 0,
+                        max: 3,
+                        iconPlaceholder: Icons.handyman,
+                      ),
+                      const SizedBox(height: 15),
+                      _buildMissionCard(
+                        title: "ท้าทายบอส: พิทักษ์ป่า",
+                        current: 0,
+                        max: 1,
+                        iconPlaceholder: Icons.security,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-
-            // --- ปุ่มเช็คอินด้านล่าง ---
-            _buildCheckInButton(),
-          ],
+              _buildCheckInButton(),
+            ],
+          ),
         ),
       ),
     );

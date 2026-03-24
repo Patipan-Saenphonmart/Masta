@@ -86,15 +86,29 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
                 child: Column(
                   children: [
                     // Tab Bar
-                    TabBar(
-                      controller: _tabController,
-                      labelColor: const Color(0xFF3E2723),
-                      unselectedLabelColor: Colors.grey,
-                      indicatorColor: Colors.amber,
-                      tabs: const [
-                        Tab(text: "อุปกรณ์ (Items)"),
-                        Tab(text: "สกิล (Skills)"),
-                      ],
+                    // Tab Bar — สไตล์ Wood Fantasy
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF5D4037),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF4E342E), width: 2),
+                      ),
+                      child: TabBar(
+                        controller: _tabController,
+                        labelColor: Colors.white,
+                        unselectedLabelColor: const Color(0xFFD7CCC8),
+                        indicatorSize: TabBarIndicatorSize.tab,
+                        indicator: BoxDecoration(
+                          color: const Color(0xFF8D6E63),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        tabs: const [
+                          Tab(icon: Icon(Icons.shield, size: 20), text: "อุปกรณ์"),
+                          Tab(icon: Icon(Icons.auto_awesome, size: 20), text: "สกิล"),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 10),
                     
@@ -268,8 +282,9 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
         final count = inventoryCounts[itemName] ?? 1;
         final isEquipped = GameData.isEquipped(itemName);
         
-        return InkWell(
+        return GestureDetector(
           onTap: () => _toggleEquipItem(itemName),
+          onLongPress: () => _showItemDetailSheet(itemName, isSkill: false),
           child: _buildSelectableCard(itemName, count, isEquipped, isSkill: false),
         );
       },
@@ -292,11 +307,122 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
         final skillName = GameData.unlockedSkills[index];
         final isEquipped = GameData.isSkillEquipped(skillName);
         
-        return InkWell(
+        return GestureDetector(
           onTap: () => _toggleEquipSkill(skillName),
+          onLongPress: () => _showItemDetailSheet(skillName, isSkill: true),
           child: _buildSelectableCard(skillName, 1, isEquipped, isSkill: true),
         );
       },
+    );
+  }
+
+  // ✅ Item/Skill Detail Bottom Sheet พร้อม Stat Comparison
+  void _showItemDetailSheet(String name, {required bool isSkill}) {
+    String description = '';
+    String effect = '';
+    IconData icon = Icons.help_outline;
+    Color iconColor = Colors.grey;
+
+    if (isSkill) {
+      switch (name) {
+        case 'fireball': icon = Icons.whatshot; iconColor = Colors.orange; description = 'ยิงลูกไฟใส่ศัตรู'; effect = 'สร้างความเสียหายสูง'; break;
+        case 'heal': icon = Icons.favorite; iconColor = Colors.pink; description = 'ร่ายเวทย์รักษาบาดแผล'; effect = 'ฟื้นฟู HP 30%'; break;
+        case 'dash': icon = Icons.run_circle; iconColor = Colors.blue; description = 'พุ่งตัวไปข้างหน้าอย่างรวดเร็ว'; effect = 'เพิ่มความเร็ว x2.5'; break;
+        case 'ice_blast': icon = Icons.ac_unit; iconColor = Colors.cyan; description = 'แช่แข็งศัตรูรอบตัว'; effect = 'หยุด 3 วินาที'; break;
+      }
+    } else {
+      if (name.contains('ยา')) { icon = Icons.local_drink; iconColor = Colors.red; description = 'ยาเพิ่มเลือด'; effect = 'ฟื้นฟู HP 50 หน่วย'; }
+      else if (name.contains('ดาบ')) { icon = Icons.flash_on; iconColor = Colors.amber; description = 'ดาบสายฟ้า'; effect = 'ATK +20, AGI +2'; }
+      else if (name.contains('เกราะ')) { icon = Icons.shield; iconColor = Colors.blue; description = 'เกราะวิเศษ'; effect = 'HP +50, DEF +10, AGI -5'; }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Color(0xFFFFF8E1),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(top: BorderSide(color: Color(0xFF5D4037), width: 4)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle bar
+            Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(color: Colors.brown.shade300, borderRadius: BorderRadius.circular(2))),
+            // Icon + Name
+            Row(children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: iconColor, width: 2),
+                ),
+                child: Icon(icon, size: 36, color: iconColor),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF3E2723))),
+                  const SizedBox(height: 4),
+                  Text(isSkill ? 'สกิล' : 'อุปกรณ์', style: TextStyle(fontSize: 13, color: Colors.brown.shade400)),
+                ]),
+              ),
+            ]),
+            const SizedBox(height: 16),
+            // Description
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF795548).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(description.isNotEmpty ? description : 'ไม่มีคำอธิบาย',
+                  style: const TextStyle(fontSize: 15, color: Color(0xFF4E342E))),
+                if (effect.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(children: [
+                    const Icon(Icons.auto_awesome, size: 16, color: Colors.amber),
+                    const SizedBox(width: 6),
+                    Text(effect, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.amber)),
+                  ]),
+                ],
+              ]),
+            ),
+            const SizedBox(height: 16),
+            // ปุ่ม Equip/Unequip
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF795548),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  if (isSkill) {
+                    _toggleEquipSkill(name);
+                  } else {
+                    _toggleEquipItem(name);
+                  }
+                },
+                child: Text(
+                  isSkill
+                    ? (GameData.isSkillEquipped(name) ? 'ถอดสกิล' : 'ติดตั้งสกิล')
+                    : (GameData.isEquipped(name) ? 'ถอดอุปกรณ์' : 'สวมใส่'),
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

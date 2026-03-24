@@ -6,12 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flame_tiled/flame_tiled.dart' hide Text;
 import 'package:flame/collisions.dart';
 
-import '../game_data.dart'; // ✅ เชื่อมต่อ GameData
-import '../character_page.dart'; // ✅ Import หน้า Character เพื่อทำปุ่มเปิดกระเป๋า
+import '../game_data.dart';
+import '../character_page.dart';
 import 'components/rabbit.dart';
 import 'components/enemy.dart';
 import 'overlays/question_overlay.dart';
 import 'overlays/skill_overlay.dart';
+import 'overlays/battle_overlay.dart';
 import 'components/tree.dart';
 
 // =====================================================================
@@ -33,57 +34,91 @@ class RabbitGamePage extends StatelessWidget {
           'SkillOverlay': (ctx, g) => SkillOverlay(game: g),
           'DialogOverlay': (ctx, g) => _buildDialogOverlay(ctx, g),
           'ActionOverlay': (ctx, g) => _buildActionOverlay(ctx, g),
-          // ✅ เพิ่ม Overlay ปุ่มกระเป๋า
           'BagOverlay': (ctx, g) => _buildBagOverlay(context, g),
+          // ✅ Battle Overlay ใหม่
+          'BattleOverlay': (ctx, g) => BattleOverlay(
+            game: g,
+            enemy: g.enemy ?? Enemy(),
+          ),
         },
-        // เพิ่ม BagOverlay เข้าไปใน list เริ่มต้น
         initialActiveOverlays: const ['SkillOverlay', 'BagOverlay'],
       ),
     );
   }
 
-  // ✅ สร้างปุ่ม Action ที่เปลี่ยนไอคอนได้ (NPC / Portal / Item)
+  // ✅ ปุ่ม Action ที่เปลี่ยนไอคอน/label ได้ (NPC / Portal / Item)
+  // ย้ายมาแสดงตรงกลาง-ล่าง เพื่อไม่ซ้อนกับปุ่ม Skill ทางขวา
   Widget _buildActionOverlay(BuildContext context, RabbitGame game) {
     IconData icon = Icons.touch_app;
     Color bgColor = Colors.amber;
+    String label = "กด";
 
     if (game.activeNpc != null) {
-      icon = Icons.chat_bubble; // คุย
+      icon = Icons.chat_bubble;
       bgColor = Colors.blueAccent;
+      label = "คุย";
     } else if (game.activePortal != null) {
-      icon = Icons.meeting_room_rounded; // เข้าประตู
+      icon = Icons.meeting_room_rounded;
       bgColor = Colors.amber;
+      label = "เข้า";
     } else if (game.activeItem != null) {
-      icon = Icons.back_hand; // ✅ เก็บของ (รูปมือ)
+      icon = Icons.back_hand;
       bgColor = Colors.green;
+      label = "เก็บ";
     }
 
     return Positioned(
-      bottom: 120,
-      right: 40,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => game.onActionPressed(),
-          borderRadius: BorderRadius.circular(30),
-          child: Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              color: bgColor.withOpacity(0.9),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 3),
-              boxShadow: const [
-                BoxShadow(
-                    color: Colors.black45,
-                    blurRadius: 4,
-                    offset: Offset(0, 2))
-              ],
-            ),
-            child: Icon(
-              icon,
-              color: Colors.white,
-              size: 36,
+      bottom: 30,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.elasticOut,
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: value,
+              child: child,
+            );
+          },
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => game.onActionPressed(),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                decoration: BoxDecoration(
+                  color: bgColor.withOpacity(0.95),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: const [
+                    BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 6,
+                        offset: Offset(0, 4))
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(icon, color: Colors.white, size: 28),
+                    const SizedBox(width: 8),
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(color: Colors.black45, offset: Offset(1, 1), blurRadius: 2)
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -91,57 +126,115 @@ class RabbitGamePage extends StatelessWidget {
     );
   }
 
-  // ✅ ปุ่มเปิดกระเป๋า (มุมขวาบน)
+  // ✅ ปุ่มเปิดกระเป๋า (มุมขวาบน) — สไตล์ Pixel/Fantasy
   Widget _buildBagOverlay(BuildContext context, RabbitGame game) {
     return Positioned(
-      top: 20,
-      right: 20,
-      child: FloatingActionButton(
-        mini: true,
-        backgroundColor: Colors.brown.shade700,
-        onPressed: () {
-          // หยุดเกมชั่วคราว (ถ้าต้องการ) หรือแค่ไปหน้าใหม่
+      top: 16,
+      right: 16,
+      child: GestureDetector(
+        onTap: () {
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const CharacterPage()),
-          ).then((_) {
-            // เมื่อกลับมาจากหน้ากระเป๋า ให้รีเฟรช UI หรือค่าพลังถ้าจำเป็น
-            // (GameData อัปเดตแล้ว RabbitGame จะดึงค่าใหม่เองใน update loop)
-          });
+          );
         },
-        child: const Icon(Icons.backpack, color: Colors.white),
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF8D6E63), Color(0xFF5D4037)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFF4E342E), width: 3),
+            boxShadow: const [
+              BoxShadow(
+                color: Colors.black38,
+                offset: Offset(0, 4),
+                blurRadius: 0,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.backpack, color: Color(0xFFFFECB3), size: 28),
+        ),
       ),
     );
   }
 
+  // ✅ Dialog สไตล์ Wood Frame — Fantasy theme
   Widget _buildDialogOverlay(BuildContext context, RabbitGame game) {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
-        margin: const EdgeInsets.all(20),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Colors.black87,
+          color: const Color(0xFF4E342E), // ขอบไม้เข้ม
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white, width: 2),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              game.currentDialogMessage,
-              style: const TextStyle(color: Colors.white, fontSize: 18),
-            ),
-            const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.bottomRight,
-              child: ElevatedButton(
-                onPressed: () => game.closeDialog(),
-                child: const Text("ปิด"),
-              ),
-            )
+          boxShadow: const [
+            BoxShadow(color: Colors.black54, blurRadius: 8, offset: Offset(0, 4)),
           ],
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8E1), // พื้นกระดาษครีม
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFD7CCC8), width: 2),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // NPC label
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF795548),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text("NPC",
+                  style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                game.currentDialogMessage,
+                style: const TextStyle(
+                  color: Color(0xFF3E2723),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: GestureDetector(
+                  onTap: () => game.closeDialog(),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8D6E63),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF5D4037), width: 2),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black26, offset: Offset(0, 3), blurRadius: 0),
+                      ],
+                    ),
+                    child: const Text("ปิด ▶",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            ],
+          ),
         ),
       ),
     );
@@ -162,7 +255,6 @@ class RabbitGame extends FlameGame
   late World world;
   late CameraComponent cameraComponent;
   late TiledComponent map;
-  late HpBar hpBar;
 
   // --- Configuration ---
   int get maxHP => GameData.maxHp;
@@ -177,6 +269,7 @@ class RabbitGame extends FlameGame
   // --- Interaction State ---
   String currentDialogMessage = "";
   bool isDialogActive = false;
+  @override
   bool isLoading = false;
   double collisionCooldown = 0.0;
 
@@ -212,10 +305,8 @@ class RabbitGame extends FlameGame
       ..viewfinder.zoom = 1.8;
     add(cameraComponent);
 
-    hpBar = HpBar(this)
-      ..position = Vector2(20, 20)
-      ..priority = 9999;
-    add(hpBar);
+    // ✅ ลบ HpBar (Flame component) ออก — ใช้ HP Bar จาก SkillOverlay แทน เพื่อไม่ให้ซ้ำซ้อน
+    // hpBar ถูกแทนที่ด้วย HP bar ใน skill_overlay.dart
 
     rabbit = Rabbit()
       ..priority = 100
@@ -394,7 +485,9 @@ class RabbitGame extends FlameGame
           inQuestion = true;
           answered = false;
           joystickDirection.setZero();
-          overlays.add('QuestionOverlay');
+          // ✅ ใช้ BattleOverlay แทน QuestionOverlay
+          overlays.remove('BattleOverlay'); // remove ก่อนเพื่อ rebuild ด้วย enemy ใหม่
+          overlays.add('BattleOverlay');
           overlays.remove('SkillOverlay');
           if (activePortal != null || activeNpc != null || activeItem != null) overlays.remove('ActionOverlay');
         }
@@ -531,8 +624,18 @@ class RabbitGame extends FlameGame
               )..priority = 5);
               break;
             case 'Enemy':
-              world.add(Enemy()
-                ..position = Vector2(obj.x, obj.y)
+              // ✅ อ่านข้อมูล element/ธาตุ จาก Tiled properties
+              final enemyElement = obj.properties.getValue<String>('element') ?? 'ignis';
+              final enemyName = obj.properties.getValue<String>('enemyName') ?? 'ศัตรู';
+              final strongSubj = obj.properties.getValue<String>('strongSubject') ?? 'ฟิสิกส์';
+              final weakSubj = obj.properties.getValue<String>('weakSubject') ?? 'เคมี';
+              world.add(Enemy(
+                position: Vector2(obj.x, obj.y),
+                enemyName: enemyName,
+                element: enemyElement,
+                strongSubject: strongSubj,
+                weakSubject: weakSubj,
+              )
                 ..size = Vector2(obj.width, obj.height)
                 ..priority = 5);
               break;
@@ -727,6 +830,31 @@ Future<Sprite?> _getSpriteFromGid(int gid, TiledComponent map) async {
 
   void healPlayer() {
     playerHP = maxHP;
+  }
+
+  // ✅ Quiz Battle: callbacks หลังจบ Battle
+  void onBattleWon() {
+    if (enemy != null) {
+      enemy!.die();
+    }
+    inQuestion = false;
+    collisionCooldown = 2.0;
+    overlays.remove('BattleOverlay');
+    overlays.add('SkillOverlay');
+  }
+
+  void onBattleLost() {
+    // โดนตีแตก: knockback + ลด HP
+    if (enemy != null) {
+      Vector2 knockbackDir = (rabbit.position - enemy!.position).normalized();
+      if (knockbackDir.length == 0) knockbackDir = Vector2(1, 0);
+      rabbit.position += knockbackDir * 60;
+    }
+    rabbit.playHit();
+    inQuestion = false;
+    collisionCooldown = 2.0;
+    overlays.remove('BattleOverlay');
+    overlays.add('SkillOverlay');
   }
 }
 

@@ -21,4 +21,35 @@ class QuestionService {
 
     return List<Map<String, dynamic>>.from(response);
   }
+
+  /// ✅ ดึงคำถามตามวิชาและ difficulty (สำหรับ Battle System)
+  static Future<List<Map<String, dynamic>>> fetchQuestionsBySubjectAndDifficulty(
+      String subject, int difficulty) async {
+    try {
+      var query = SupabaseConfig.client
+          .from('questions')
+          .select()
+          .eq('topic', subject);
+
+      // ถ้ามี column difficulty ใน database ก็ filter ด้วย
+      // query = query.eq('difficulty', difficulty);
+
+      final response = await query.order('created_at', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// ✅ สุ่มคำถาม 1 ข้อจากวิชาที่กำหนด
+  static Future<Map<String, dynamic>?> fetchRandomQuestion(String subject) async {
+    try {
+      final questions = await fetchQuestions(subject);
+      if (questions.isEmpty) return null;
+      questions.shuffle();
+      return questions.first;
+    } catch (e) {
+      return null;
+    }
+  }
 }

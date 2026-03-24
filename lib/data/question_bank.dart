@@ -1,0 +1,261 @@
+import 'dart:math';
+import '../supabase_config.dart';
+
+/// คลังคำถาม Hybrid: ดึงจาก Supabase ก่อน ถ้าไม่ได้ใช้ local fallback
+class QuestionBank {
+  static final Random _rng = Random();
+
+  // =====================================================================
+  // PUBLIC API
+  // =====================================================================
+
+  /// ดึงคำถามสุ่ม 1 ข้อจากวิชาที่กำหนด (Hybrid: online ก่อน → offline fallback)
+  static Future<Map<String, dynamic>> getRandomQuestion(String subject) async {
+    try {
+      final online = await QuestionService.fetchQuestions(subject);
+      if (online.isNotEmpty) {
+        online.shuffle();
+        return online.first;
+      }
+    } catch (_) {}
+    return _getLocalQuestion(subject);
+  }
+
+  /// ดึงคำถามหลายข้อสำหรับให้ผู้เล่นเลือก (Phase 2: เลือกโจทย์ถามศัตรู)
+  static Future<List<Map<String, dynamic>>> getQuestionsForPick(String subject, {int count = 3}) async {
+    List<Map<String, dynamic>> pool = [];
+    try {
+      pool = await QuestionService.fetchQuestions(subject);
+    } catch (_) {}
+
+    if (pool.isEmpty) {
+      pool = List.from(_localQuestions[subject] ?? _localQuestions['ฟิสิกส์']!);
+    }
+
+    pool.shuffle();
+    return pool.take(count).toList();
+  }
+
+  // =====================================================================
+  // LOCAL FALLBACK QUESTIONS
+  // =====================================================================
+
+  static Map<String, dynamic> _getLocalQuestion(String subject) {
+    final pool = _localQuestions[subject] ?? _localQuestions['ฟิสิกส์']!;
+    return pool[_rng.nextInt(pool.length)];
+  }
+
+  static final Map<String, List<Map<String, dynamic>>> _localQuestions = {
+    // ======================== ฟิสิกส์ ========================
+    'ฟิสิกส์': [
+      {
+        'question_text': 'แรงลัพธ์ที่กระทำต่อวัตถุมวล 2 kg ทำให้เกิดความเร่ง 3 m/s² แรงมีค่าเท่าใด?',
+        'choices': ['6 N', '5 N', '1.5 N', '3 N'],
+        'answer': '6 N',
+        'explanation': 'F = ma = 2×3 = 6 N (กฎข้อ 2 ของนิวตัน)',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'วัตถุตกอิสระจากที่สูง ใช้เวลา 2 วินาที จงหาระยะทางที่ตก (g=10 m/s²)',
+        'choices': ['20 m', '40 m', '10 m', '5 m'],
+        'answer': '20 m',
+        'explanation': 's = ½gt² = ½(10)(4) = 20 m',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'รถยนต์เคลื่อนที่ด้วยความเร็ว 20 m/s เบรกจนหยุดในเวลา 4 วินาที ความเร่งมีค่าเท่าใด?',
+        'choices': ['-5 m/s²', '-4 m/s²', '5 m/s²', '80 m/s²'],
+        'answer': '-5 m/s²',
+        'explanation': 'a = (v-u)/t = (0-20)/4 = -5 m/s²',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'พลังงานจลน์ของวัตถุมวล 4 kg เคลื่อนที่ด้วยความเร็ว 3 m/s มีค่าเท่าใด?',
+        'choices': ['18 J', '12 J', '6 J', '36 J'],
+        'answer': '18 J',
+        'explanation': 'Ek = ½mv² = ½(4)(9) = 18 J',
+        'difficulty': 2,
+      },
+      {
+        'question_text': 'งานที่ทำในการยกวัตถุ 5 kg ขึ้นสูง 3 เมตร มีค่าเท่าใด? (g=10 m/s²)',
+        'choices': ['150 J', '50 J', '15 J', '100 J'],
+        'answer': '150 J',
+        'explanation': 'W = mgh = 5×10×3 = 150 J',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'แรงเสียดทานจลน์มีค่าเท่าใด ถ้า μ=0.3 และแรงปฏิกิริยาตั้งฉาก = 100 N?',
+        'choices': ['30 N', '300 N', '33 N', '3 N'],
+        'answer': '30 N',
+        'explanation': 'f = μN = 0.3×100 = 30 N',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'คลื่นเสียงมีความถี่ 340 Hz ความยาวคลื่น 1 m อัตราเร็วเสียงมีค่าเท่าใด?',
+        'choices': ['340 m/s', '170 m/s', '680 m/s', '34 m/s'],
+        'answer': '340 m/s',
+        'explanation': 'v = fλ = 340×1 = 340 m/s',
+        'difficulty': 2,
+      },
+      {
+        'question_text': 'กฎข้อที่ 3 ของนิวตัน กล่าวถึงเรื่องใด?',
+        'choices': ['แรงกิริยา-ปฏิกิริยา', 'ความเฉื่อย', 'F = ma', 'แรงโน้มถ่วง'],
+        'answer': 'แรงกิริยา-ปฏิกิริยา',
+        'explanation': 'กฎข้อ 3: ทุกแรงกิริยามีแรงปฏิกิริยาที่เท่ากันและทิศตรงข้าม',
+        'difficulty': 1,
+      },
+    ],
+
+    // ======================== เคมี ========================
+    'เคมี': [
+      {
+        'question_text': 'สารใดต่อไปนี้เป็นกรด?',
+        'choices': ['HCl', 'NaOH', 'NaCl', 'KOH'],
+        'answer': 'HCl',
+        'explanation': 'HCl (กรดไฮโดรคลอริก) ให้ H⁺ ในสารละลาย',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'จำนวนอิเล็กตรอนในอะตอมคาร์บอน (C, เลขอะตอม 6) มีกี่ตัว?',
+        'choices': ['6', '12', '8', '4'],
+        'answer': '6',
+        'explanation': 'เลขอะตอม = จำนวนโปรตอน = จำนวนอิเล็กตรอน (ในอะตอมปกติ)',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'pH ของสารละลายที่เป็นกลาง (neutral) มีค่าเท่าใด?',
+        'choices': ['7', '0', '14', '1'],
+        'answer': '7',
+        'explanation': 'pH = 7 เป็นกลาง, <7 เป็นกรด, >7 เป็นเบส',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'สมดุลเคมี H₂(g) + I₂(g) ⇌ 2HI(g) เมื่อเพิ่มความดัน สมดุลจะเลื่อนไปทางใด?',
+        'choices': ['ไม่เปลี่ยน', 'ไปทางขวา', 'ไปทางซ้าย', 'หยุดปฏิกิริยา'],
+        'answer': 'ไม่เปลี่ยน',
+        'explanation': 'จำนวนโมลแก๊สทั้งสองข้างเท่ากัน (2=2) ความดันจึงไม่มีผล',
+        'difficulty': 2,
+      },
+      {
+        'question_text': 'ตารางธาตุจัดเรียงธาตุตามอะไร?',
+        'choices': ['เลขอะตอม', 'มวลอะตอม', 'จำนวนนิวตรอน', 'ความหนาแน่น'],
+        'answer': 'เลขอะตอม',
+        'explanation': 'ตารางธาตุสมัยใหม่จัดเรียงตามเลขอะตอมที่เพิ่มขึ้น',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'กฎของบอยล์ กล่าวว่าอะไรแปรผกผันกัน? (ที่อุณหภูมิคงที่)',
+        'choices': ['ความดันกับปริมาตร', 'ความดันกับอุณหภูมิ', 'ปริมาตรกับอุณหภูมิ', 'มวลกับปริมาตร'],
+        'answer': 'ความดันกับปริมาตร',
+        'explanation': 'กฎของบอยล์: PV = k (ที่ T คงที่) P แปรผกผันกับ V',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'พันธะโคเวเลนต์เกิดจากอะไร?',
+        'choices': ['การใช้อิเล็กตรอนร่วมกัน', 'การให้-รับอิเล็กตรอน', 'แรงไฟฟ้าสถิต', 'การแลกเปลี่ยนนิวตรอน'],
+        'answer': 'การใช้อิเล็กตรอนร่วมกัน',
+        'explanation': 'พันธะโคเวเลนต์ = อะตอมใช้อิเล็กตรอนร่วมกันเพื่อให้เสถียร',
+        'difficulty': 1,
+      },
+    ],
+
+    // ======================== ชีววิทยา ========================
+    'ชีววิทยา': [
+      {
+        'question_text': 'ไมโทคอนเดรีย (Mitochondria) ทำหน้าที่อะไร?',
+        'choices': ['ผลิตพลังงาน (ATP)', 'สังเคราะห์โปรตีน', 'เก็บ DNA', 'ย่อยของเสีย'],
+        'answer': 'ผลิตพลังงาน (ATP)',
+        'explanation': 'ไมโทคอนเดรีย = โรงไฟฟ้าของเซลล์ ผลิต ATP จากการหายใจระดับเซลล์',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'DNA มีรูปร่างเป็นแบบใด?',
+        'choices': ['เกลียวคู่ (Double Helix)', 'เส้นตรง', 'วงกลม', 'สามเหลี่ยม'],
+        'answer': 'เกลียวคู่ (Double Helix)',
+        'explanation': 'Watson & Crick ค้นพบโครงสร้าง DNA เป็นเกลียวคู่ในปี 1953',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'การสังเคราะห์ด้วยแสงเกิดขึ้นที่ออร์แกเนลล์ใด?',
+        'choices': ['คลอโรพลาสต์', 'ไมโทคอนเดรีย', 'กอลจิ', 'ไรโบโซม'],
+        'answer': 'คลอโรพลาสต์',
+        'explanation': 'คลอโรพลาสต์มีคลอโรฟิลล์ดูดซับแสง ทำหน้าที่สังเคราะห์ด้วยแสง',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'เซลล์พืชมีส่วนประกอบใดที่เซลล์สัตว์ไม่มี?',
+        'choices': ['ผนังเซลล์', 'เยื่อหุ้มเซลล์', 'นิวเคลียส', 'ไซโทพลาซึม'],
+        'answer': 'ผนังเซลล์',
+        'explanation': 'ผนังเซลล์ (Cell Wall) มีเฉพาะเซลล์พืช ทำจากเซลลูโลส ช่วยให้เซลล์แข็งแรง',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'ในกระบวนการหายใจเซลล์ แก๊สใดถูกใช้?',
+        'choices': ['O₂ (ออกซิเจน)', 'CO₂ (คาร์บอนไดออกไซด์)', 'N₂ (ไนโตรเจน)', 'H₂ (ไฮโดรเจน)'],
+        'answer': 'O₂ (ออกซิเจน)',
+        'explanation': 'C₆H₁₂O₆ + 6O₂ → 6CO₂ + 6H₂O + ATP',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'เนื้อเยื่อท่อลำเลียง Xylem ลำเลียงอะไร?',
+        'choices': ['น้ำและแร่ธาตุ', 'อาหาร', 'ออกซิเจน', 'ฮอร์โมน'],
+        'answer': 'น้ำและแร่ธาตุ',
+        'explanation': 'Xylem ลำเลียงน้ำ+แร่ธาตุจากรากขึ้นบน, Phloem ลำเลียงอาหาร',
+        'difficulty': 2,
+      },
+    ],
+
+    // ======================== คณิตศาสตร์ ========================
+    'คณิตศาสตร์': [
+      {
+        'question_text': 'ถ้า 2x + 6 = 16 แล้ว x มีค่าเท่าใด?',
+        'choices': ['5', '8', '10', '4'],
+        'answer': '5',
+        'explanation': '2x = 16-6 = 10, x = 5',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'พื้นที่สามเหลี่ยมฐาน 10 cm สูง 6 cm มีค่าเท่าใด?',
+        'choices': ['30 cm²', '60 cm²', '16 cm²', '20 cm²'],
+        'answer': '30 cm²',
+        'explanation': 'A = ½ × ฐาน × สูง = ½ × 10 × 6 = 30 cm²',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'ค่าของ 3² + 4² เท่ากับเท่าใด?',
+        'choices': ['25', '12', '7', '49'],
+        'answer': '25',
+        'explanation': '3² + 4² = 9 + 16 = 25',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'ถ้า x² = 49 แล้ว x มีค่าเท่าใด?',
+        'choices': ['±7', '7', '49', '±49'],
+        'answer': '±7',
+        'explanation': 'x² = 49, x = ±√49 = ±7',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'ผลรวมของมุมภายในสามเหลี่ยม มีค่าเท่าใด?',
+        'choices': ['180°', '360°', '90°', '270°'],
+        'answer': '180°',
+        'explanation': 'ผลรวมมุมภายในสามเหลี่ยม = 180° เสมอ',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'เส้นรอบวงของวงกลมรัศมี 7 cm คือเท่าใด? (ใช้ π ≈ 22/7)',
+        'choices': ['44 cm', '22 cm', '154 cm', '14 cm'],
+        'answer': '44 cm',
+        'explanation': 'C = 2πr = 2 × (22/7) × 7 = 44 cm',
+        'difficulty': 1,
+      },
+      {
+        'question_text': 'อสมการใดเป็นจริง?',
+        'choices': ['-3 < 2', '-3 > 2', '0 < -1', '5 < 3'],
+        'answer': '-3 < 2',
+        'explanation': '-3 น้อยกว่า 2 จึงเป็นจริง',
+        'difficulty': 1,
+      },
+    ],
+  };
+}

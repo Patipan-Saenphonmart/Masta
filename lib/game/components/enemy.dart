@@ -1,6 +1,7 @@
+import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
-import 'package:flutter/material.dart'; // ✅ เพิ่มเพื่อใช้ Colors
+import 'package:flutter/material.dart';
 
 enum EnemyState { idle, walk, run, hit, dead }
 
@@ -8,7 +9,14 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
   // --- Stats ---
   int maxHp = 50;
   int hp = 50;
-  double detectionRange = 200.0; // ✅ ระยะมองเห็น (ไล่ตามเมื่อเข้าใกล้นี้)
+  double detectionRange = 200.0;
+
+  // --- ✅ Quiz Battle: ข้อมูลธาตุ/วิชา ---
+  final String enemyName;
+  final String element;       // 'ignis', 'arcana', 'vita', 'nexus'
+  final String strongSubject; // วิชาที่ถนัด
+  final String weakSubject;   // วิชาที่อ่อน
+  final Map<String, double> proficiency; // ความถนัดแต่ละวิชา (0.0 - 1.0)
 
   // --- UI Components ---
   late RectangleComponent hpBar;
@@ -23,13 +31,49 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
 
   Vector2 velocity = Vector2.zero();
 
-  Enemy({Vector2? position})
-      : super(
+  static final Random _rng = Random();
+
+  Enemy({
+    Vector2? position,
+    this.enemyName = 'ศัตรู',
+    this.element = 'ignis',
+    this.strongSubject = 'ฟิสิกส์',
+    this.weakSubject = 'เคมี',
+    Map<String, double>? proficiency,
+  })  : proficiency = proficiency ?? _defaultProficiency(element),
+        super(
           position: position ?? Vector2.zero(),
           size: Vector2.all(32),
           anchor: Anchor.center,
           current: EnemyState.idle,
         );
+
+  /// สร้าง proficiency map เริ่มต้นจากธาตุ
+  static Map<String, double> _defaultProficiency(String element) {
+    switch (element) {
+      case 'ignis':
+        return {'ฟิสิกส์': 0.9, 'เคมี': 0.3, 'ชีววิทยา': 0.5, 'คณิตศาสตร์': 0.5};
+      case 'arcana':
+        return {'ฟิสิกส์': 0.5, 'เคมี': 0.9, 'ชีววิทยา': 0.3, 'คณิตศาสตร์': 0.5};
+      case 'vita':
+        return {'ฟิสิกส์': 0.5, 'เคมี': 0.5, 'ชีววิทยา': 0.9, 'คณิตศาสตร์': 0.3};
+      case 'nexus':
+        return {'ฟิสิกส์': 0.3, 'เคมี': 0.5, 'ชีววิทยา': 0.5, 'คณิตศาสตร์': 0.9};
+      default:
+        return {'ฟิสิกส์': 0.5, 'เคมี': 0.5, 'ชีววิทยา': 0.5, 'คณิตศาสตร์': 0.5};
+    }
+  }
+
+  /// AI ตอบคำถามวิชา [subject] — คืน {correct: bool, timeUsed: double (วินาที)}
+  Map<String, dynamic> answerQuestion(String subject) {
+    final skill = proficiency[subject] ?? 0.5;
+    // โอกาสตอบถูกตาม proficiency
+    final bool correct = _rng.nextDouble() < skill;
+    // เวลาตอบ: ถนัดมาก → ตอบเร็ว (2-5วิ), ไม่ถนัด → ตอบช้า (8-14วิ)
+    final double baseTime = correct ? (3.0 + (1 - skill) * 10) : (8.0 + _rng.nextDouble() * 5);
+    final double timeUsed = baseTime.clamp(2.0, 14.0);
+    return {'correct': correct, 'timeUsed': timeUsed};
+  }
 
   bool get isHitPlaying => _isHitPlaying;
 

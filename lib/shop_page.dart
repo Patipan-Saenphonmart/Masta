@@ -286,17 +286,6 @@ class _ShopPageState extends State<ShopPage> with SingleTickerProviderStateMixin
               child: const Icon(Icons.person, color: Colors.white),
             ),
           ),
-          IconButton(
-            onPressed: () {
-              setState(() {
-                GameData.levelUp();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Level Up!"), duration: Duration(milliseconds: 500))
-                );
-              });
-            },
-            icon: const Icon(Icons.arrow_circle_up, color: Colors.greenAccent),
-          ),
         ],
       ),
       body: Stack(
