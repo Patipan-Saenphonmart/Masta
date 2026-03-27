@@ -2,7 +2,7 @@ import 'package:flame/components.dart';
 import 'package:flame/sprite.dart';
 import 'package:flame/game.dart';
 import 'package:flame/collisions.dart';
-import 'package:flutter/material.dart'; // สำหรับ Colors
+// สำหรับ Colors
 import '../../game_data.dart'; // ✅ Import GameData
 
 enum RabbitState { idle, run, jump, hit, dead }
@@ -37,10 +37,10 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // Hitbox ปรับให้พอดีกับ characterSize (50x50)
+    // Hitbox ปรับให้ครอบคลุมแค่บริเวณส่วนเท้าของตัวละคร
     add(RectangleHitbox(
-      position: Vector2(12, 12), // ปรับตำแหน่งให้เข้ากลาง (ลองปรับค่านี้ให้พอดีกับตัวกระต่าย)
-      size: Vector2(26, 30),     // ขนาด Hitbox
+      position: Vector2(10, 36), // ย้ายตำแหน่ง Y ลงมาที่ด้านล่าง (เท้า) 
+      size: Vector2(30, 14),     // ลดความสูงให้เหลือแค่ช่วงเท้า และขยายความกว้างนิดหน่อย
     ));
 
     // เช็คว่าใส่เกราะไหม
@@ -144,6 +144,14 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
     // ไม่ต้องใช้ Future.delayed เพื่อคืนค่า เพราะทำใน update แล้ว (แม่นยำกว่า)
   }
 
+  // ✅ ฟังก์ชันสำหรับชุบชีวิต
+  void reset() {
+    _isDead = false;
+    _isHitPlaying = false;
+    velocity = Vector2.zero();
+    current = RabbitState.idle;
+  }
+
   void playDeath() {
     if (_isDead) return;
     _isDead = true;
@@ -151,7 +159,9 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
     setState(RabbitState.dead);
     // ลบออกจากเกมเมื่อเล่นท่าตายจบ (หรือดีเลย์สักพัก)
     Future.delayed(const Duration(seconds: 2), () {
-      removeFromParent();
+      if (_isDead) { // ✅ ตรวจสอบก่อนเผื่อว่าผู้เล่นกดเริ่มใหม่ไปแล้วก่อน 2 วิ
+        removeFromParent();
+      }
     });
   }
 }

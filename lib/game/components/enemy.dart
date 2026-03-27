@@ -29,6 +29,10 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
   final double _hitStepTime = 0.12;
   final int _hitFrames = 4;
 
+  // --- Pathfinding ---
+  List<Vector2> currentPath = [];
+  double pathRecalculateTimer = 0.0;
+
   Vector2 velocity = Vector2.zero();
 
   static final Random _rng = Random();

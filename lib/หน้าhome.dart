@@ -8,6 +8,7 @@ import 'character_page.dart';
 import 'event_page.dart';
 import 'rank_page.dart';
 import 'friends_page.dart';
+import 'warehouse_page.dart';
 import 'game_data.dart'; // Import GameData เพื่อใช้ค่าจริง
 
 
@@ -87,7 +88,7 @@ class _LearningGameHomeState extends State<LearningGameHome>
     } else if (label == "คลังของ") {
         Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const CharacterPage()),
+        MaterialPageRoute(builder: (context) => const WarehousePage()),
         );
     } else {
       print("Pressed: $label");

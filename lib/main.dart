@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'supabase_config.dart';
-import 'หน้าhome.dart';
+import 'title_screen.dart';
 
-Future<String> main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SupabaseConfig.init(); // initialize Supabase (placeholder)
   runApp(const LearningGameApp());
-  return "App started";
 }
 
 class LearningGameApp extends StatelessWidget {
@@ -17,7 +16,7 @@ class LearningGameApp extends StatelessWidget {
     return MaterialApp(
       title: 'Learning Game',
       debugShowCheckedModeBanner: false,
-      home: const LearningGameHome(),
+      home: const TitleScreen(), // ✅ เปลี่ยนมาโหลดหน้าเริ่มเกมเป็นหน้าแรกสุด
     );
   }
 }
