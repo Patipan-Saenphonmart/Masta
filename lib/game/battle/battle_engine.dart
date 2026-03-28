@@ -116,14 +116,9 @@ class BattleEngine {
   // เปลี่ยนเทิร์น
   // =====================================================================
 
-  /// สลับเทิร์น
+  /// สลับเทิร์น/เริ่มเทิร์นถัดไป
   void nextTurn() {
-    if (currentTurn == BattleTurn.enemyAsks) {
-      currentTurn = BattleTurn.playerAsks;
-    } else {
-      currentTurn = BattleTurn.enemyAsks;
-      turnCount++;
-    }
+    turnCount++;
   }
 
   // =====================================================================

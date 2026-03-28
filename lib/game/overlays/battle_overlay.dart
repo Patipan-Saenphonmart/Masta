@@ -71,8 +71,6 @@ class _BattleOverlayState extends State<BattleOverlay>
   String battleMessage = '';
   bool showActionMenu = false;
 
-  final Random _rng = Random();
-
   @override
   void initState() {
     super.initState();
@@ -244,85 +242,31 @@ class _BattleOverlayState extends State<BattleOverlay>
         return;
       }
       engine.nextTurn();
-      _startPickSubject();
+      _startPlayerChoice();
     });
   }
 
   // =====================================================================
-  // PHASE 2: ผู้เล่นเลือกวิชา → เลือกโจทย์ → ส่งให้ศัตรู
+  // PHASE 2: ผู้เล่นเลือกว่าจะสู้ต่อหรือหนี
   // =====================================================================
-  void _startPickSubject() {
+  void _startPlayerChoice() {
     setState(() {
-      phase = 'pickSubject';
-      battleMessage = 'เลือกวิชาเพื่อโจมตี ${engine.enemyProfile.name}!';
+      phase = 'playerChoice';
+      battleMessage = 'จะสู้ต่อหรือหลบหนีดี?';
     });
   }
 
-  Future<void> _onSubjectPicked(String subject) async {
-    setState(() {
-      pickedSubject = subject;
-      phase = 'pickQuestion';
-      loading = true;
-      battleMessage = 'เลือกโจทย์$subjectที่จะส่งให้ศัตรู...';
-    });
-
-    final questions = await QuestionBank.getQuestionsForPick(subject, count: 3);
-    if (!mounted) return;
-
-    setState(() {
-      questionOptions = questions;
-      loading = false;
-    });
+  void _onContinueFighting() {
+    _startEnemyAsks();
   }
 
-  void _onQuestionPicked(Map<String, dynamic> question) {
+  void _onFlee() {
     setState(() {
-      currentQuestion = question;
-      phase = 'aiThinking';
-      battleMessage = '${engine.enemyProfile.name} กำลังคิด...';
+      phase = 'defeat';
+      battleMessage = '🏃 คุณหลบหนีจากการต่อสู้...';
     });
-
-    // AI ตอบ (จำลอง delay)
-    Future.delayed(Duration(milliseconds: 1500 + _rng.nextInt(1000)), () {
-      if (!mounted) return;
-      lastResult =
-          engine.processEnemyAnswer(chosenSubject: pickedSubject ?? 'ฟิสิกส์');
-
-      if (lastResult!.correct) {
-        // AI ตอบถูก → ดาเมจผู้เล่น
-        widget.game.damagePlayer(lastResult!.finalDamage);
-        widget.game.rabbit.playHit();
-        _shakeCtrl.forward(from: 0);
-        setState(() {
-          phase = 'aiResult';
-          battleMessage =
-              '😰 ${engine.enemyProfile.name} ตอบถูก! คุณโดน -${lastResult!.finalDamage} HP';
-        });
-      } else {
-        // AI ตอบผิด → ดาเมจศัตรู (engine ทำให้แล้ว)
-        setState(() {
-          phase = 'aiResult';
-          battleMessage =
-              '🎉 ${engine.enemyProfile.name} ตอบผิด! ศัตรูโดน -${lastResult!.finalDamage} HP';
-        });
-      }
-      _resultCtrl.forward(from: 0);
-
-      Future.delayed(const Duration(milliseconds: 2500), () {
-        if (!mounted) return;
-        if (engine.battleEnded) {
-          _endBattle();
-          return;
-        }
-        if (widget.game.playerHP <= 0) {
-          engine.battleEnded = true;
-          engine.winner = 'enemy';
-          _endBattle();
-          return;
-        }
-        engine.nextTurn();
-        _startEnemyAsks();
-      });
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) widget.game.onBattleLost();
     });
   }
 
@@ -333,13 +277,13 @@ class _BattleOverlayState extends State<BattleOverlay>
     if (engine.winner == 'player') {
       final rewards = engine.calculateRewards();
       GameData.playerGold += rewards['gold'] ?? 0;
-      
+
       // ✅ คำนวณ EXP และเช็คเลเวลอัพ
       int expGained = widget.enemy.maxHp * 2;
       int oldLevel = GameData.playerLevel;
       GameData.addExp(expGained);
       bool leveledUp = GameData.playerLevel > oldLevel;
-      
+
       if (leveledUp) {
         widget.game.playerHP = widget.game.maxHP; // เติมเลือดเต็มเมื่อเวลอัพ
       }
@@ -352,7 +296,8 @@ class _BattleOverlayState extends State<BattleOverlay>
 
       setState(() {
         phase = 'victory';
-        battleMessage = '🏆 ชนะ!\nได้รับ ${rewards['gold']} Gold และ $expGained EXP!${leveledUp ? '\n🌟 เลเวลอัปเป็น ${GameData.playerLevel}!' : ''}';
+        battleMessage =
+            '🏆 ชนะ!\nได้รับ ${rewards['gold']} Gold และ $expGained EXP!${leveledUp ? '\n🌟 เลเวลอัปเป็น ${GameData.playerLevel}!' : ''}';
       });
 
       Future.delayed(const Duration(seconds: 3), () {
@@ -376,11 +321,17 @@ class _BattleOverlayState extends State<BattleOverlay>
     try {
       _enemySpriteImage =
           await _loadImage(_enemySpriteAsset(widget.enemy.element));
+
+      // ✅ เช็คว่าใส่เกราะไหม เพื่อโหลดรูปให้ตรงกับสถานะ
+      bool hasArmor = GameData.isEquipped("เกราะวิเศษ (Magic Armor)");
+      String suffix = hasArmor ? "_armor" : "";
+
       _playerSpriteImage =
-          await _loadImage('assets/images/rabbit_idle_armor.png');
+          await _loadImage('assets/images/rabbit_idle$suffix.png');
+
       if (mounted) setState(() => _spritesLoaded = true);
     } catch (e) {
-      debugPrint('Sprite load error: \$e');
+      debugPrint('Sprite load error: $e');
     }
   }
 
@@ -418,21 +369,6 @@ class _BattleOverlayState extends State<BattleOverlay>
     if (remainingSeconds > 10) return const Color(0xFF4CAF50);
     if (remainingSeconds > 5) return const Color(0xFFFF9800);
     return const Color(0xFFF44336);
-  }
-
-  String _subjectEmoji(String s) {
-    switch (s) {
-      case 'ฟิสิกส์':
-        return '🔥';
-      case 'เคมี':
-        return '🧪';
-      case 'ชีววิทยา':
-        return '🌿';
-      case 'คณิตศาสตร์':
-        return '📐';
-      default:
-        return '📚';
-    }
   }
 
   // =====================================================================
@@ -477,7 +413,8 @@ class _BattleOverlayState extends State<BattleOverlay>
 
           // =================== ENEMY SPRITE (บนโขดหินล่างขวา) ===================
           Positioned(
-            top: MediaQuery.of(context).size.height * 0.40, // ย้ายลงมาใกล้ player
+            top: MediaQuery.of(context).size.height *
+                0.40, // ย้ายลงมาใกล้ player
             right: MediaQuery.of(context).size.width * 0.05, // ชิดขวาขึ้น
             child: AnimatedBuilder(
               animation: _shakeAnim,
@@ -497,14 +434,15 @@ class _BattleOverlayState extends State<BattleOverlay>
                       height: 120,
                       child: Transform(
                         alignment: Alignment.center,
-                        transform: Matrix4.rotationY(pi), // หันหน้าไปหา player (ทางซ้าย)
+                        transform: Matrix4.rotationY(
+                            pi), // หันหน้าไปหา player (ทางซ้าย)
                         child: AnimatedBuilder(
                           animation: _spriteAnimCtrl,
                           builder: (ctx, _) => CustomPaint(
                             painter: _BattleSpritePainter(
                               image: _enemySpriteImage!,
                               animationValue: _spriteAnimCtrl.value,
-                              frameWidth: 32, // enemy_idle มีเฟรมละ 32 pixels 
+                              frameWidth: 32, // enemy_idle มีเฟรมละ 32 pixels
                               frameHeight: 32,
                             ),
                           ),
@@ -769,17 +707,13 @@ class _BattleOverlayState extends State<BattleOverlay>
     switch (phase) {
       case 'intro':
       case 'showResult':
-      case 'aiThinking':
-      case 'aiResult':
       case 'victory':
       case 'defeat':
         return _buildWaitingPanel();
       case 'enemyAsks':
         return loading ? _buildLoadingPanel() : _buildQuestionPanel();
-      case 'pickSubject':
-        return _buildSubjectPanel(profile);
-      case 'pickQuestion':
-        return loading ? _buildLoadingPanel() : _buildQuestionPickPanel();
+      case 'playerChoice':
+        return _buildPlayerChoicePanel();
       default:
         return _buildWaitingPanel();
     }
@@ -794,17 +728,7 @@ class _BattleOverlayState extends State<BattleOverlay>
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (phase == 'aiThinking') ...[
-            const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Color(0xFF5D4037))),
-            const SizedBox(width: 12),
-            const Text('กำลังคิด...',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: Color(0xFF5D4037))),
-          ] else if (showVictory) ...[
+          if (showVictory) ...[
             const Text('🏆', style: TextStyle(fontSize: 32)),
           ] else if (showDefeat) ...[
             const Text('💀', style: TextStyle(fontSize: 32)),
@@ -969,165 +893,62 @@ class _BattleOverlayState extends State<BattleOverlay>
     );
   }
 
-  // --- SUBJECT SELECTION (Phase 2 step 1) ---
-  Widget _buildSubjectPanel(EnemyBattleProfile profile) {
-    final subjects = engine.availableSubjects;
+  // --- PLAYER CHOICE ---
+  Widget _buildPlayerChoicePanel() {
     return Padding(
       padding: const EdgeInsets.all(12),
-      child: Column(
+      child: Row(
         children: [
-          // 2x2 grid
-          Row(
-            children: [
-              _buildSubjectButton(subjects[0], profile),
-              const SizedBox(width: 8),
-              _buildSubjectButton(subjects[1], profile),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _buildSubjectButton(subjects[2], profile),
-              const SizedBox(width: 8),
-              _buildSubjectButton(subjects[3], profile),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSubjectButton(String subject, EnemyBattleProfile profile) {
-    final isWeak = subject == profile.weakSubject;
-    final isStrong = subject == profile.strongSubject;
-    final profPercent = ((profile.proficiency[subject] ?? 0.5) * 100).round();
-
-    Color bgColor = const Color(0xFFFFCC80);
-    Color borderColor = const Color(0xFF5D4037);
-    if (isWeak) {
-      bgColor = const Color(0xFFA5D6A7);
-      borderColor = const Color(0xFF2E7D32);
-    } else if (isStrong) {
-      bgColor = const Color(0xFFEF9A9A);
-      borderColor = const Color(0xFFC62828);
-    }
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => _onSubjectPicked(subject),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: borderColor, width: 2),
-            boxShadow: [
-              BoxShadow(
-                  color: borderColor.withOpacity(0.3),
-                  offset: const Offset(0, 3),
-                  blurRadius: 0)
-            ],
-          ),
-          child: Column(
-            children: [
-              Text(_subjectEmoji(subject),
-                  style: const TextStyle(fontSize: 22)),
-              const SizedBox(height: 2),
-              Text(subject,
-                  style: const TextStyle(
+          Expanded(
+            child: GestureDetector(
+              onTap: _onContinueFighting,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF9A9A),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFC62828), width: 2),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x33000000), offset: Offset(0, 3), blurRadius: 0)
+                  ],
+                ),
+                child: const Text(
+                  '⚔️ โจมตีต่อ',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                      color: Color(0xFF3E2723))),
-              Text(
-                isWeak
-                    ? '⭐ จุดอ่อน'
-                    : isStrong
-                        ? '⚠️ ถนัด'
-                        : '$profPercent%',
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: isWeak
-                        ? const Color(0xFF2E7D32)
-                        : isStrong
-                            ? const Color(0xFFC62828)
-                            : const Color(0xFF5D4037)),
+                      fontSize: 16,
+                      color: Color(0xFFB71C1C)),
+                ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // --- QUESTION PICK (Phase 2 step 2: เลือกโจทย์จริง) ---
-  Widget _buildQuestionPickPanel() {
-    if (questionOptions.isEmpty) return _buildWaitingPanel();
-
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF42A5F5),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              '🎯 เลือกโจทย์${pickedSubject ?? ''}ถามศัตรู',
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13),
             ),
           ),
-          ...questionOptions.map((q) => _buildQuestionOption(q)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: GestureDetector(
+              onTap: _onFlee,
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF90CAF9),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF1565C0), width: 2),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x33000000), offset: Offset(0, 3), blurRadius: 0)
+                  ],
+                ),
+                child: const Text(
+                  '🏃 หลบหนี',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Color(0xFF0D47A1)),
+                ),
+              ),
+            ),
+          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildQuestionOption(Map<String, dynamic> q) {
-    final text = q['question_text'] ?? '';
-    // ตัดข้อความให้สั้นลงถ้ายาวเกิน
-    final displayText = text.length > 60 ? '${text.substring(0, 57)}...' : text;
-
-    return GestureDetector(
-      onTap: () => _onQuestionPicked(q),
-      child: Container(
-        width: double.infinity,
-        margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFCC80),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFF5D4037), width: 2),
-          boxShadow: const [
-            BoxShadow(
-                color: Color(0x33000000), offset: Offset(0, 2), blurRadius: 0)
-          ],
-        ),
-        child: Row(
-          children: [
-            const Text('📜 ', style: TextStyle(fontSize: 16)),
-            Expanded(
-              child: Text(
-                displayText,
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: Color(0xFF3E2723)),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const Icon(Icons.arrow_forward_ios,
-                size: 14, color: Color(0xFF5D4037)),
-          ],
-        ),
       ),
     );
   }
