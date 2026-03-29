@@ -5,7 +5,7 @@ import 'package:flame/collisions.dart';
 // สำหรับ Colors
 import '../../game_data.dart'; // ✅ Import GameData
 
-enum RabbitState { idle, run, jump, hit, dead }
+enum RabbitState { idle, run, jump, hit, dead, sleeping }
 
 class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
     with HasGameRef<FlameGame>, CollisionCallbacks {
@@ -88,6 +88,8 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
       RabbitState.jump: jumpSheet.createAnimation(row: 0, stepTime: 0.20, from: 0, to: 3),
       RabbitState.hit: hitSheet.createAnimation(row: 0, stepTime: _hitStepTime, from: 0, to: _hitFrames - 1, loop: false),
       RabbitState.dead: deadSheet.createAnimation(row: 0, stepTime: 0.25, from: 0, to: 3, loop: false),
+      // ✅ Sleeping: ใช้ hit sprite เป็น placeholder (จะหมุน 90 องศาใน setSleeping)
+      RabbitState.sleeping: hitSheet.createAnimation(row: 0, stepTime: 0.8, from: 0, to: 1, loop: true),
     };
   }
 
@@ -163,5 +165,23 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
         removeFromParent();
       }
     });
+  }
+
+  // ✅ Cutscene: ท่านอนสลบ
+  void setSleeping() {
+    _isDead = false;
+    _isHitPlaying = false;
+    velocity = Vector2.zero();
+    current = RabbitState.sleeping;
+    angle = 1.5708; // หมุน 90 องศา (นอนตะแคง)
+  }
+
+  // ✅ Cutscene: ลุกขึ้นยืน
+  void wakeUp() {
+    angle = 0; // คืนค่าหมุนปกติ
+    _isDead = false;
+    _isHitPlaying = false;
+    velocity = Vector2.zero();
+    current = RabbitState.idle;
   }
 }

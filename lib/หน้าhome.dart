@@ -361,28 +361,28 @@ class _LearningGameHomeState extends State<LearningGameHome>
                 // TOP BAR
                 Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                   
                   child: Row(
                     children: [
                       _buildTopTabButton("ร้านค้า", Icons.storefront, true),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 6),
                       _buildTopTabButton("คลังของ", Icons.backpack, false),
                       const Spacer(),
                       // ✅ Level Badge
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        margin: const EdgeInsets.only(right: 8),
+                            horizontal: 6, vertical: 4),
+                        margin: const EdgeInsets.only(right: 6),
                         decoration: BoxDecoration(
                             color: Colors.redAccent.withOpacity(0.8),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                                color: Colors.red.shade800, width: 2)),
+                                color: Colors.red.shade800, width: 1.5)),
                         child: Row(
                           children: [
                             const Icon(Icons.military_tech,
-                                color: Colors.white, size: 18),
+                                color: Colors.white, size: 14),
                             const SizedBox(width: 4),
                             Text("Lv.${GameData.playerLevel}",
                                 style: const TextStyle(
@@ -395,22 +395,22 @@ class _LearningGameHomeState extends State<LearningGameHome>
                       // ✅ เงิน — ใช้ค่าจริงจาก GameData
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 6),
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                             color: const Color(0xFF5D4037).withOpacity(0.7),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                                color: const Color(0xFFA1887F), width: 2)),
+                                color: const Color(0xFFA1887F), width: 1.5)),
                         child: Row(
                           children: [
                             const Icon(Icons.monetization_on,
-                                color: Color(0xFFFFEB3B), size: 20),
-                            const SizedBox(width: 6),
+                                color: Color(0xFFFFEB3B), size: 16),
+                            const SizedBox(width: 4),
                             Text("${GameData.playerGold}",
                                 style: const TextStyle(
                                     color: Color(0xFFDCEDC8),
                                     fontWeight: FontWeight.w900,
-                                    fontSize: 16)),
+                                    fontSize:   14)),
                           ],
                         ),
                       )

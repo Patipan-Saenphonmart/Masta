@@ -17,19 +17,22 @@ import 'overlays/battle_overlay.dart';
 import 'overlays/game_over_overlay.dart';
 import 'overlays/quest_overlay.dart'; // ✅ Import QuestOverlay
 import 'overlays/inventory_overlay.dart'; // ✅ Import InventoryOverlay
+import 'overlays/cutscene_overlay.dart'; // ✅ Import CutsceneOverlay
 import '../utils/save_manager.dart'; // ✅ Import SaveManager
-import '../title_screen.dart'; // ✅ Import TitleScreen
+import '../หน้าhome.dart'; // ✅ Import Home Page
 
 // =====================================================================
 // 1. WIDGET: Game Page & UI Overlays
 // =====================================================================
 
 class RabbitGamePage extends StatelessWidget {
-  const RabbitGamePage({super.key});
+  final bool showIntroCutscene; // ✅ เพิ่ม parameter สำหรับ cutscene
+  const RabbitGamePage({super.key, this.showIntroCutscene = false});
 
   @override
   Widget build(BuildContext context) {
-    final game = RabbitGame();
+    final game = RabbitGame()
+      ..isCutsceneMode = showIntroCutscene; // ✅ set cutscene mode flag
 
     return Scaffold(
       body: GameWidget<RabbitGame>(
@@ -50,12 +53,16 @@ class RabbitGamePage extends StatelessWidget {
               QuestOverlay(game: g), // ✅ เพิ่ม Quest Overlay
           'OptionMenuOverlay': (ctx, g) => _buildOptionMenuOverlay(ctx, g),
           'InventoryOverlay': (ctx, g) => InventoryOverlay(game: g),
+          // ✅ Cutscene Overlay
+          'CutsceneOverlay': (ctx, g) => CutsceneOverlay(game: g),
         },
-        initialActiveOverlays: const [
-          'SkillOverlay',
-          'BagOverlay',
-          'QuestOverlay'
-        ], // ✅ เพิ่มเควสต์ในตอนเริ่มเกม
+        initialActiveOverlays: showIntroCutscene
+            ? const ['CutsceneOverlay'] // ✅ เริ่มด้วย cutscene ไม่มี UI อื่น
+            : const [
+                'SkillOverlay',
+                'BagOverlay',
+                'QuestOverlay'
+              ], // ✅ เพิ่มเควสต์ในตอนเริ่มเกม
       ),
     );
   }
@@ -323,22 +330,6 @@ class RabbitGamePage extends StatelessWidget {
                   )),
               const Divider(color: Color(0xFFD7CCC8), thickness: 2, height: 30),
 
-              // 💾 บันทึกเกม
-              _optionButton(
-                  icon: Icons.save_alt_rounded,
-                  label: "บันทึกเกม (Save Game)",
-                  color: const Color(0xFF4CAF50),
-                  onTap: () async {
-                    await SaveManager.saveGame();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('บันทึกข้อมูลเรียบร้อยแล้ว! 💾',
-                              style: TextStyle(fontWeight: FontWeight.bold))));
-                      game.overlays.remove('OptionMenuOverlay');
-                    }
-                  }),
-              const SizedBox(height: 12),
-
               // 🎵 ปิด/เปิดเสียง
               _optionButton(
                   icon: Icons.music_note_rounded,
@@ -351,20 +342,23 @@ class RabbitGamePage extends StatelessWidget {
                   }),
               const SizedBox(height: 12),
 
-              // 🚪 ออกจากเกมกลับเมนูหลัก
+              // 🚪 ออกจากเกมกลับหน้าหลัก (✅ Auto Save + ไป Home แทน TitleScreen)
               _optionButton(
                   icon: Icons.door_back_door_rounded,
                   label: "กลับหน้าหลัก (Quit)",
                   color: const Color(0xFFD32F2F),
                   onTap: () async {
-                    await SaveManager.saveGame(); // Auto-save ก่อนออก
+                    await SaveManager.saveGame(); // ✅ Auto-save ก่อนออก
                     if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('บันทึกข้อมูลอัตโนมัติเรียบร้อยแล้ว! 💾',
+                              style: TextStyle(fontWeight: FontWeight.bold))));
                       Navigator.pushAndRemoveUntil(
                         context,
                         PageRouteBuilder(
                           pageBuilder:
                               (context, animation, secondaryAnimation) =>
-                                  const TitleScreen(),
+                                  const LearningGameHome(), // ✅ ไป Home แทน TitleScreen
                           transitionsBuilder:
                               (context, animation, secondaryAnimation, child) {
                             return FadeTransition(
@@ -453,6 +447,9 @@ class RabbitGame extends FlameGame
   bool inQuestion = false;
   bool answered = false;
 
+  // --- Cutscene State ---
+  bool isCutsceneMode = false; // ✅ Cutscene mode flag
+
   // --- Interaction State ---
   String currentDialogMessage = "";
   bool isDialogActive = false;
@@ -510,6 +507,9 @@ class RabbitGame extends FlameGame
     super.update(dt);
 
     if (isLoading) return;
+
+    // ✅ Cutscene mode: หยุดทุก gameplay รอ cutscene overlay ควบคุม
+    if (isCutsceneMode) return;
 
     // ✅ ป้องกันไม่ให้ทำอย่างอื่นถ้า Game Over แล้ว
     if (isGameOver) return;
@@ -976,6 +976,17 @@ class RabbitGame extends FlameGame
     overlays.add('SkillOverlay');
     overlays.add('BagOverlay');
     overlays.add('QuestOverlay'); // ✅ กลับมาแสดงเควสต์
+  }
+
+  // ✅ Cutscene: จบ cutscene แล้วกลับเข้าสู่เกมปกติ
+  void endCutsceneMode() {
+    isCutsceneMode = false;
+    freezeTimer = 0; // ปลดล็อค freeze
+    
+    // แสดง UI ปกติ
+    overlays.add('SkillOverlay');
+    overlays.add('BagOverlay');
+    overlays.add('QuestOverlay');
   }
 
   // -------------------------------------------------------------------

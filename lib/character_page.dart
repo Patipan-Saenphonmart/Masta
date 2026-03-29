@@ -52,9 +52,13 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
   }
 
   void _startAdventure() {
+    // ✅ เช็คว่าเคยเห็น intro cutscene หรือยัง
+    final bool showCutscene = !GameData.hasSeenIntroCutscene;
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const RabbitGamePage()),
+      MaterialPageRoute(
+        builder: (context) => RabbitGamePage(showIntroCutscene: showCutscene),
+      ),
     );
   }
 

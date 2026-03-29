@@ -5,6 +5,12 @@ class GameData {
   static int playerGold = 99999;
   static int playerLevel = 1;
   static int currentExp = 0; // ✅ เพิ่มค่าประสบการณ์
+
+  // ✅ Cutscene flag — เล่น intro cutscene แค่ครั้งเดียว
+  static bool hasSeenIntroCutscene = false;
+  
+  // ✅ Tutorial flag — ผ่าน tutorial แล้วหรือยัง
+  static bool hasCompletedTutorial = false;
   
   static List<String> inventory = []; 
   static List<String> unlockedSkills = [];
@@ -247,6 +253,8 @@ class GameData {
       'questionStats': questionStats,
       'knowledgeJournal': knowledgeJournal, 
       'activeQuests': activeQuests.map((q) => q.toJson()).toList(), // ✅ เซฟเควสต์
+      'hasSeenIntroCutscene': hasSeenIntroCutscene, // ✅ เซฟ cutscene flag
+      'hasCompletedTutorial': hasCompletedTutorial, // ✅ เซฟ tutorial flag
     };
   }
 
@@ -281,10 +289,14 @@ class GameData {
       activeQuests = (json['activeQuests'] as List).map((q) => Quest.fromJson(q)).toList();
       questUpdateNotifier.value++;
     }
+    hasSeenIntroCutscene = json['hasSeenIntroCutscene'] ?? false; // ✅ โหลด cutscene flag
+    hasCompletedTutorial = json['hasCompletedTutorial'] ?? false; // ✅ โหลด tutorial flag
   }
 
   // ✅ รีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้นเวลาเริ่มเกมใหม่
   static void reset() {
+    hasSeenIntroCutscene = false; // ✅ รีเซ็ต cutscene flag
+    hasCompletedTutorial = false; // ✅ รีเซ็ต tutorial flag
     playerGold = 1000; // เริ่มต้นมีเงิน 1000 G
     playerLevel = 1;
     currentExp = 0;
