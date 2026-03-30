@@ -1,10 +1,11 @@
 import 'package:flutter/foundation.dart';
-import 'models/quest.dart'; // ✅ Import Quest
+import 'models/quest.dart'; // Import Quest
+import 'models/book.dart'; // Import Book
 
 class GameData {
   static int playerGold = 99999;
   static int playerLevel = 1;
-  static int currentExp = 0; // ✅ เพิ่มค่าประสบการณ์
+  static int currentExp = 0; // เพิ่มค่าประสบการณ์
 
   // ✅ Cutscene flag — เล่น intro cutscene แค่ครั้งเดียว
   static bool hasSeenIntroCutscene = false;
@@ -42,6 +43,12 @@ class GameData {
   ];
 
   static ValueNotifier<int> questUpdateNotifier = ValueNotifier(0);
+
+  // ✅ ระบบหนังสือ
+  static List<Book> books = [];
+  static List<Map<String, dynamic>> questLogEntries = [];
+  static bool isBossDoorUnlocked = false;
+  static ValueNotifier<int> bookUpdateNotifier = ValueNotifier(0);
 
   // --- Base Stats ---
   static int baseHp = 100;
@@ -128,6 +135,48 @@ class GameData {
   
   static bool hasItem(String itemName) => inventory.contains(itemName);
   static bool hasSkill(String skillName) => unlockedSkills.contains(skillName);
+
+  // ✅ ระบบตรวจสอบประเภทไอเทม
+  static bool isBook(String itemName) {
+    return itemName.contains('หนังสือ') || itemName.contains('Book') || itemName.contains('บันทึก');
+  }
+
+  // ✅ เพิ่มหนังสือเข้าคลัง
+  static void addBook(Book book) {
+    if (!books.any((b) => b.id == book.id)) {
+      books.add(book);
+      inventory.add(book.title);
+      bookUpdateNotifier.value++;
+    }
+  }
+
+  // ✅ บันทึกโจทย์ลงหนังสือบันทึกโจทย์
+  static void recordQuestLogEntry(Map<String, dynamic> question, String answer) {
+    questLogEntries.add({
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'question': question['question'],
+      'answer': answer,
+      'subject': question['subject'] ?? 'ไม่ระบุ',
+      'timestamp': DateTime.now().toIso8601String(),
+    });
+    
+    // เช็คเงื่อนไขปลดล็อกบอส (28 ข้อ)
+    if (questLogEntries.length >= 28 && !isBossDoorUnlocked) {
+      isBossDoorUnlocked = true;
+      print("🎉 ประตูห้องบอสเปิดแล้ว! ตอบโจทย์ครบ 28 ข้อ");
+    }
+    
+    bookUpdateNotifier.value++;
+  }
+
+  // ✅ ดึงข้อมูลหนังสือจากชื่อ
+  static Book? getBookByTitle(String title) {
+    try {
+      return books.firstWhere((book) => book.title == title);
+    } catch (e) {
+      return null;
+    }
+  }
 
   static int get expToNextLevel => playerLevel * 100;
 
@@ -252,9 +301,13 @@ class GameData {
       'subjectMastery': subjectMastery,
       'questionStats': questionStats,
       'knowledgeJournal': knowledgeJournal, 
-      'activeQuests': activeQuests.map((q) => q.toJson()).toList(), // ✅ เซฟเควสต์
-      'hasSeenIntroCutscene': hasSeenIntroCutscene, // ✅ เซฟ cutscene flag
-      'hasCompletedTutorial': hasCompletedTutorial, // ✅ เซฟ tutorial flag
+      'activeQuests': activeQuests.map((q) => q.toJson()).toList(),
+      'hasSeenIntroCutscene': hasSeenIntroCutscene,
+      'hasCompletedTutorial': hasCompletedTutorial,
+      // ✅ บันทึกข้อมูลหนังสือ
+      'books': books.map((b) => b.toJson()).toList(),
+      'questLogEntries': questLogEntries,
+      'isBossDoorUnlocked': isBossDoorUnlocked,
     };
   }
 
@@ -291,6 +344,15 @@ class GameData {
     }
     hasSeenIntroCutscene = json['hasSeenIntroCutscene'] ?? false; // ✅ โหลด cutscene flag
     hasCompletedTutorial = json['hasCompletedTutorial'] ?? false; // ✅ โหลด tutorial flag
+    
+    // ✅ โหลดข้อมูลหนังสือ
+    if (json['books'] != null) {
+      books = (json['books'] as List).map((b) => Book.fromJson(b)).toList();
+    }
+    if (json['questLogEntries'] != null) {
+      questLogEntries = List<Map<String, dynamic>>.from(json['questLogEntries']);
+    }
+    isBossDoorUnlocked = json['isBossDoorUnlocked'] ?? false;
   }
 
   // ✅ รีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้นเวลาเริ่มเกมใหม่
@@ -322,5 +384,15 @@ class GameData {
       Quest(id: "q2", title: "นักปราชญ์", description: "ตอบคำถามให้ถูกต้อง 5 ข้อ", targetAction: "answer_correct", targetCount: 5, rewardGold: 1000, rewardExp: 500),
     ];
     questUpdateNotifier.value++;
+    
+    // ✅ รีเซ็ตข้อมูลหนังสือ
+    books.clear();
+    questLogEntries.clear();
+    isBossDoorUnlocked = false;
+    
+    // ✅ เพิ่มหนังสือบันทึกโจทย์เสมอ
+    addBook(Book.questLog());
+    
+    bookUpdateNotifier.value++;
   }
 }

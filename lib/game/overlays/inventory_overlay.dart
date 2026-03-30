@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../game_data.dart';
 import '../rabbit_game.dart';
+import '../../models/book.dart'; // อย่าลืม import Book
 
 class InventoryOverlay extends StatefulWidget {
   final RabbitGame game;
@@ -39,6 +40,178 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
         }
       }
     });
+  }
+
+  void _showItemActionDialog(String itemName) {
+    bool isBook = GameData.isBook(itemName);
+    String title = isBook ? "อ่านหนังสือ" : "สวมใส่ไอเทม";
+    String question = isBook 
+        ? "คุณต้องการอ่านหนังสือเล่มนี้หรือไม่?"
+        : "คุณต้องการสวมใส่ไอเทมนี้หรือไม่?";
+    String confirmText = isBook ? "อ่าน" : "สวมใส่";
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0xFF8D6E63), width: 3),
+          ),
+          elevation: 10,
+          backgroundColor: const Color(0xFFFFF8E1),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  const Color(0xFFFFF8E1),
+                  const Color(0xFFF5F5DC).withOpacity(0.95),
+                ],
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8D6E63).withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFF8D6E63), width: 2),
+                  ),
+                  child: Icon(
+                    isBook ? Icons.menu_book : Icons.check_circle,
+                    size: 50,
+                    color: const Color(0xFF5D4037),
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Title
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF3E2723),
+                    fontFamily: 'Comic Sans MS',
+                    shadows: [
+                      Shadow(
+                        blurRadius: 2,
+                        color: Colors.brown.withOpacity(0.3),
+                        offset: const Offset(1, 1),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 12),
+                
+                // Question
+                Text(
+                  question,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.brown.shade700,
+                    height: 1.4,
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    // Cancel Button
+                    SizedBox(
+                      width: 100,
+                      height: 45,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey.shade400,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          elevation: 4,
+                        ),
+                        child: const Text(
+                          'ไม่',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // Confirm Button
+                    SizedBox(
+                      width: 100,
+                      height: 45,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          if (isBook) {
+                            // ✅ ดึงข้อมูลหนังสือและเปิดแบบ Popup
+                            Book? book = GameData.getBookByTitle(itemName);
+                            if (book == null) {
+                              book = Book.regular(
+                                id: 'default_book',
+                                title: itemName,
+                                description: 'หนังสือธรรมดา',
+                                content: 'นี่คือเนื้อหาของหนังสือ "$itemName"\n\n'
+                                            'เนื้อหากำลังถูกพัฒนาเพิ่มเติม...\n\n'
+                                            'คุณสามารถเพลิดเพลินกับการอ่านหนังสือเล่มนี้ได้',
+                              );
+                            }
+                            
+                            showDialog(
+                              context: context,
+                              barrierDismissible: true,
+                              barrierColor: Colors.black87, // ดิมพื้นหลังตอนเปิดหนังสือ
+                              builder: (context) => _BookPopupOverlay(book: book!),
+                            );
+                            
+                          } else {
+                            _toggleEquipItem(itemName);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4CAF50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
+                          ),
+                          elevation: 4,
+                        ),
+                        child: Text(
+                          confirmText,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -214,7 +387,7 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
                         style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 18)),
+                            fontSize: 12)),
                   ],
                 ),
               )
@@ -289,7 +462,6 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
     );
   }
 
-  // --- Grid สำหรับไอเทม ---
   Widget _buildInventoryGrid() {
     if (GameData.inventory.isEmpty) {
       return const Center(
@@ -321,14 +493,13 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
         final isEquipped = GameData.isEquipped(itemName);
 
         return GestureDetector(
-          onTap: () => _toggleEquipItem(itemName),
+          onTap: () => _showItemActionDialog(itemName),
           child: _buildItemCard(itemName, count, isEquipped, isSkill: false),
         );
       },
     );
   }
 
-  // --- Grid สำหรับสกิล ---
   Widget _buildSkillsGrid() {
     if (GameData.unlockedSkills.isEmpty) {
       return const Center(
@@ -364,28 +535,27 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
       {required bool isSkill}) {
     IconData icon = Icons.help_outline;
     Color iconColor = Colors.grey;
-    String displayName = name;
+    bool isBook = GameData.isBook(name);
 
     if (isSkill) {
       if (name == 'fireball') {
         icon = Icons.whatshot;
         iconColor = Colors.orange;
-        displayName = "Fireball";
       } else if (name == 'heal') {
         icon = Icons.favorite;
         iconColor = Colors.pink;
-        displayName = "Heal";
       } else if (name == 'dash') {
         icon = Icons.run_circle;
         iconColor = Colors.blue;
-        displayName = "Dash";
       } else if (name == 'ice_blast') {
         icon = Icons.ac_unit;
         iconColor = Colors.cyan;
-        displayName = "Ice Blast";
       }
     } else {
-      if (name.contains("ยา")) {
+      if (isBook) {
+        icon = Icons.menu_book;
+        iconColor = Colors.brown;
+      } else if (name.contains("ยา")) {
         icon = Icons.local_drink;
         iconColor = Colors.red;
       } else if (name.contains("ดาบ")) {
@@ -395,7 +565,6 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
         icon = Icons.shield;
         iconColor = Colors.blue;
       }
-      displayName = name.split(" ")[0];
     }
 
     return Container(
@@ -419,16 +588,25 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 40, color: iconColor),
+                Icon(icon, size: 20, color: iconColor),
                 const SizedBox(height: 8),
-                Text(displayName,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 13)),
-                Text(isEquipped ? "(สวมใส่แล้ว)" : "(กดสวมใส่)",
-                    style: TextStyle(
-                        fontSize: 10,
-                        color: isEquipped ? Colors.green : Colors.grey)),
+                if (isBook)
+                  const Text("หนังสือ",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, 
+                          fontSize: 11,
+                          color: Colors.brown))
+                else if (isSkill)
+                  const Text("สกิล",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 11))
+                else
+                  const Text("ไอเทม",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 11)),
               ],
             ),
           ),
@@ -450,6 +628,355 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
             ),
         ],
       ),
+    );
+  }
+}
+
+// =====================================================================
+// ✅ WIDGET สำหรับแสดงหนังสือแบบป๊อปอัพ (ไม่ต้องสลับไปหน้าใหม่)
+// =====================================================================
+class _BookPopupOverlay extends StatefulWidget {
+  final Book book;
+
+  const _BookPopupOverlay({required this.book});
+
+  @override
+  State<_BookPopupOverlay> createState() => _BookPopupOverlayState();
+}
+
+class _BookPopupOverlayState extends State<_BookPopupOverlay> {
+  int _currentSpread = 0;
+  final int _maxSpreads = 2; // มี 2 คู่หน้า
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 20),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ส่วนหัว (ชื่อหนังสือและปุ่มปิด)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.book.title,
+                    style: const TextStyle(
+                      fontFamily: 'PixelArtFont',
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFFFFD54F),
+                      shadows: [
+                        Shadow(blurRadius: 1, color: Colors.black, offset: Offset(2, 2)),
+                        Shadow(blurRadius: 1, color: Colors.black, offset: Offset(1, 1)),
+                      ],
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.cancel, color: Colors.white, size: 36),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // เนื้อหาหนังสือ
+            if (widget.book.isQuestLog)
+              SizedBox(height: 450, child: _buildQuestLogContent())
+            else
+              _buildRegularBookContent(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRegularBookContent() {
+    return Column(
+      children: [
+        // กรอบหนังสือ
+        Container(
+          height: 350, 
+          padding: const EdgeInsets.all(16), 
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/UI_TravelBook_BookCover01a.png'),
+              fit: BoxFit.fill,
+            ),
+            boxShadow: [
+              BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 5)),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch, 
+            children: [
+              // === หน้าซ้าย ===
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.only(right: 2),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage('assets/images/UI_TravelBook_BookPageLeft01a.png'),
+                      fit: BoxFit.fill,
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    child: _currentSpread == 0 ? _buildPage1() : _buildPage3(),
+                  ),
+                ),
+              ),
+
+              // === หน้าขวา ===
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.only(left: 2),
+                  padding: const EdgeInsets.fromLTRB(8, 16, 16, 16),
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage('assets/images/UI_TravelBook_BookPageRight01a.png'),
+                      fit: BoxFit.fill, 
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    child: _currentSpread == 0 ? _buildPage2() : _buildBlankLines(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // ปุ่มควบคุมหน้า
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(Icons.arrow_back_ios_rounded, 
+                  color: _currentSpread > 0 ? Colors.white : Colors.white38, 
+                  size: 24,
+                ),
+                onPressed: _currentSpread > 0 ? () {
+                  setState(() {
+                    _currentSpread--;
+                  });
+                } : null,
+              ),
+              
+              const SizedBox(width: 20),
+              
+              Text(
+                'หน้า ${_currentSpread * 2 + 1} - ${_currentSpread * 2 + 2}',
+                style: const TextStyle(
+                  fontFamily: 'PixelArtFont',
+                  fontSize: 16,
+                  color: Colors.white,
+                ),
+              ),
+
+              const SizedBox(width: 20),
+
+              IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                icon: Icon(Icons.arrow_forward_ios_rounded, 
+                  color: _currentSpread < _maxSpreads - 1 ? Colors.white : Colors.white38, 
+                  size: 24,
+                ),
+                onPressed: _currentSpread < _maxSpreads - 1 ? () {
+                  setState(() {
+                    _currentSpread++;
+                  });
+                } : null,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- เนื้อหาแต่ละหน้า (ใช้เหมือนเดิมกับที่แก้ไขไปแล้ว) ---
+  Widget _buildPage1() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '📖 คำจารึกจากผู้มาก่อน',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF5D4037),
+            fontFamily: 'PixelArtFont',
+          ),
+        ),
+        const Divider(color: Color(0xFFA1887F), thickness: 1, height: 12),
+        _buildText(
+          '"แด่ดวงจิตผู้มองเห็นความจริง... หากเจ้าอ่านอักขระเหล่านี้ออก แสดงว่าเจ้าคือผู้ถูกเลือกจาก MASTA\n\n'
+          'โลกนี้กำลังป่วยหนัก สิ่งที่ประชากรดั้งเดิมหวาดกลัวและเทิดทูนว่าคือ \'เวทมนตร์\'... '
+          'แท้จริงแล้วมันคือ \'สมการทางวิทยาศาสตร์\' ที่สูญเสียการควบคุมต่างหาก\n\n'
+          'พวกมันใช้พลังงานโดยไม่เข้าใจหลักอุณหพลศาสตร์ บิดเบือนแรงโน้มถ่วงโดยไม่สนมวลของสสาร...\n\n'
+          'จงใช้ความรู้ของเจ้า แก้ไขตัวแปรที่ผิดเพี้ยนเหล่านี้ และจงบันทึกความจริงลงในหน้ากระดาษที่เหลือ... ก่อนที่มิติแห่งนี้จะล่มสลาย"',
+          italic: true,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPage2() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '⚔️ กฎแห่งการหักล้าง',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF5D4037),
+            fontFamily: 'PixelArtFont',
+          ),
+        ),
+        const Divider(color: Color(0xFFA1887F), thickness: 1, height: 12),
+        
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            margin: const EdgeInsets.only(bottom: 8),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.brown.shade300, style: BorderStyle.solid),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.local_fire_department, color: Colors.red.shade400, size: 16),
+                const Icon(Icons.arrow_right_alt, color: Colors.brown, size: 16),
+                Icon(Icons.water_drop, color: Colors.blue.shade400, size: 16),
+              ],
+            ),
+          ),
+        ),
+        
+        _buildText('🔥 ธาตุไฟ (Ignis):', bold: true, color: Colors.red.shade900),
+        _buildText('ปฏิกิริยาออกซิเดชันคายความร้อน\nจุดอ่อน: สารทำความเย็น (เคมี)'),
+        const SizedBox(height: 6),
+        
+        _buildText('❄️ ธาตุน้ำ/น้ำแข็ง:', bold: true, color: Colors.blue.shade900),
+        _buildText('พันธะไฮโดรเจนที่ผิดปกติ\nจุดอ่อน: เพิ่มพลังงานความร้อน (ฟิสิกส์)'),
+        const SizedBox(height: 6),
+        
+        _buildText('💡 วิธีต่อสู้:', bold: true, color: Colors.brown.shade800),
+        _buildText('วิเคราะห์โครงสร้างของศัตรูเพื่อหาจุดอ่อนที่แท้จริง!', bold: true),
+      ],
+    );
+  }
+
+  Widget _buildPage3() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '📝 หน้ากระดาษที่ว่างเปล่า',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF5D4037),
+            fontFamily: 'PixelArtFont',
+          ),
+        ),
+        const Divider(color: Color(0xFFA1887F), thickness: 1, height: 12),
+        const SizedBox(height: 8),
+        
+        _buildText(
+          '(หน้าอื่นว่างเปล่าหมดเลย...)\n\n'
+          '"อ๋อ เข้าใจล่ะ MASTA ถึงเรียกฉันว่า \'ผู้บันทึก\' สินะ ฉันต้องเป็นคนเขียนข้อมูลของโลกนี้ลงไปเอง!"',
+          italic: true,
+          color: Colors.brown.shade600,
+        ),
+        const SizedBox(height: 16),
+        
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.brown.shade50,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.brown.shade200, style: BorderStyle.solid),
+          ),
+          child: _buildText(
+            '[ระบบ Pokedex: ข้อมูลของศัตรูและไอเทมใหม่ๆ จะถูกบันทึกที่นี่]',
+            fontSize: 9,
+            color: Colors.grey.shade700,
+          ),
+        )
+      ],
+    );
+  }
+
+  Widget _buildBlankLines() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < 15; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Container(
+              height: 1,
+              width: double.infinity,
+              color: const Color(0xFFA1887F).withOpacity(0.5),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildText(String text, {bool bold = false, bool italic = false, Color? color, double fontSize = 10}) {
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: fontSize,
+        height: 1.4,
+        fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+        fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+        color: color ?? const Color(0xFF3E2723),
+        fontFamily: 'PixelArtFont',
+      ),
+    );
+  }
+
+  Widget _buildQuestLogContent() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFFE8F5E8).withOpacity(0.95),
+            const Color(0xFFF0F8FF).withOpacity(0.95),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF4CAF50), width: 4),
+        boxShadow: const [
+          BoxShadow(color: Colors.black54, blurRadius: 15, offset: Offset(0, 8)),
+        ],
+      ),
+      child: const Center(child: Text("Quest Log UI")), // แก้ให้แสดง Quest Log ตามความเหมาะสม
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'game_data.dart';
+import 'book_reading_dialog.dart';
 
 class WarehousePage extends StatefulWidget {
   const WarehousePage({super.key});
@@ -193,11 +194,12 @@ class _WarehousePageState extends State<WarehousePage> with SingleTickerProvider
         final itemName = uniqueItems[index];
         final count = inventoryCounts[itemName] ?? 1;
         final isEquipped = GameData.isEquipped(itemName);
+        final isBook = GameData.isBook(itemName);
         
         return GestureDetector(
-          onTap: () => _toggleEquipItem(itemName),
+          onTap: () => isBook ? BookReadingDialog.show(context, itemName) : _toggleEquipItem(itemName),
           onLongPress: () => _showItemDetailSheet(itemName, isSkill: false),
-          child: _buildSelectableCard(itemName, count, isEquipped, isSkill: false),
+          child: _buildSelectableCard(itemName, count, isEquipped, isSkill: false, isBook: isBook),
         );
       },
     );
@@ -243,8 +245,14 @@ class _WarehousePageState extends State<WarehousePage> with SingleTickerProvider
     IconData icon = Icons.help_outline;
     Color iconColor = Colors.grey;
     bool isEquipped = isSkill ? GameData.isSkillEquipped(name) : GameData.isEquipped(name);
+    bool isBook = GameData.isBook(name);
 
-    if (isSkill) {
+    if (isBook) {
+      icon = Icons.menu_book;
+      iconColor = Colors.brown;
+      description = 'หนังสือที่สามารถอ่านเพื่อเพิ่มพัฒนาการ';
+      effect = 'คลิกเพื่อเปิดอ่านหนังสือ';
+    } else if (isSkill) {
       switch (name) {
         case 'fireball': icon = Icons.whatshot; iconColor = Colors.orange; description = 'ยิงลูกไฟใส่ศัตรู'; effect = 'สร้างความเสียหายสูง'; break;
         case 'heal': icon = Icons.favorite; iconColor = Colors.pink; description = 'ร่ายเวทย์รักษาบาดแผล'; effect = 'ฟื้นฟู HP 30%'; break;
@@ -288,7 +296,7 @@ class _WarehousePageState extends State<WarehousePage> with SingleTickerProvider
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF3E2723))),
                     const SizedBox(height: 4),
-                    Text(isSkill ? 'ประเภท: สกิล' : 'ประเภท: อุปกรณ์', style: TextStyle(fontSize: 14, color: Colors.brown.shade400)),
+                    Text(isBook ? 'ประเภท: หนังสือ' : (isSkill ? 'ประเภท: สกิล' : 'ประเภท: อุปกรณ์'), style: TextStyle(fontSize: 14, color: Colors.brown.shade400)),
                   ]),
                 ),
               ]),
@@ -317,16 +325,22 @@ class _WarehousePageState extends State<WarehousePage> with SingleTickerProvider
                 height: 55,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isEquipped ? Colors.red.shade400 : const Color(0xFF5D4037),
+                    backgroundColor: isBook ? Colors.brown.shade600 : (isEquipped ? Colors.red.shade400 : const Color(0xFF5D4037)),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  icon: Icon(isEquipped ? Icons.remove_circle : Icons.check_circle, color: Colors.white),
+                  icon: Icon(isBook ? Icons.menu_book : (isEquipped ? Icons.remove_circle : Icons.check_circle), color: Colors.white),
                   onPressed: () {
                     Navigator.pop(ctx);
-                    if (isSkill) { _toggleEquipSkill(name); } else { _toggleEquipItem(name); }
+                    if (isBook) { 
+                      BookReadingDialog.show(context, name); 
+                    } else if (isSkill) { 
+                      _toggleEquipSkill(name); 
+                    } else { 
+                      _toggleEquipItem(name); 
+                    }
                   },
                   label: Text(
-                    isSkill ? (isEquipped ? 'ถอดสกิล' : 'สวมใส่สกิล') : (isEquipped ? 'ปลดอุปกรณ์' : 'สวมใส่อุปกรณ์'),
+                    isBook ? 'อ่านหนังสือ' : (isSkill ? (isEquipped ? 'ถอดสกิล' : 'สวมใส่สกิล') : (isEquipped ? 'ปลดอุปกรณ์' : 'สวมใส่อุปกรณ์')),
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                 ),
@@ -338,7 +352,7 @@ class _WarehousePageState extends State<WarehousePage> with SingleTickerProvider
     );
   }
 
-  Widget _buildSelectableCard(String name, int count, bool isEquipped, {required bool isSkill}) {
+  Widget _buildSelectableCard(String name, int count, bool isEquipped, {required bool isSkill, bool isBook = false}) {
     IconData icon = Icons.help_outline;
     Color iconColor = Colors.grey;
     String displayName = name;
@@ -349,10 +363,15 @@ class _WarehousePageState extends State<WarehousePage> with SingleTickerProvider
       else if (name == 'dash') { icon = Icons.run_circle; iconColor = Colors.blue; displayName = "Dash"; }
       else if (name == 'ice_blast') { icon = Icons.ac_unit; iconColor = Colors.cyan; displayName = "Ice Blast"; }
     } else {
-      if (name.contains("ยา")) { icon = Icons.local_drink; iconColor = Colors.red; }
+      if (isBook) { 
+        icon = Icons.menu_book; 
+        iconColor = Colors.brown; 
+        displayName = name.split(" ")[0];
+      }
+      else if (name.contains("ยา")) { icon = Icons.local_drink; iconColor = Colors.red; }
       else if (name.contains("ดาบ")) { icon = Icons.flash_on; iconColor = Colors.amber; }
       else if (name.contains("เกราะ")) { icon = Icons.shield; iconColor = Colors.blue; }
-      displayName = name.split(" ")[0];
+      else { displayName = name.split(" ")[0]; }
     }
 
     return Container(
@@ -403,7 +422,16 @@ class _WarehousePageState extends State<WarehousePage> with SingleTickerProvider
                 child: Text("x$count", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
               ),
             ),
-          if (isEquipped)
+          if (isBook)
+            Positioned(
+              top: 8, left: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: Colors.brown, borderRadius: BorderRadius.circular(8)),
+                child: const Text("อ่าน", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          if (isEquipped && !isBook)
             Positioned(
               top: 8, left: 8,
               child: Container(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'supabase_config.dart';
+import 'game_data.dart';
 
 class QuizPage extends StatefulWidget {
   final String topic;
@@ -56,6 +57,8 @@ class _QuizPageState extends State<QuizPage> {
     });
 
     if (correct) {
+      // บันทึกคำถามที่ตอบถูกลงหนังสือบันทึกโจทย์
+      GameData.recordQuestLogEntry(q, choice);
       // เสียง Effect หรือ Animation ตรงนี้ได้
     } else {
       setState(() {
