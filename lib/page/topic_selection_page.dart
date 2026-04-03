@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'quiz_game_page.dart';
+import '../utils/audio_manager.dart'; // ✅ Import AudioManager
 
 class TopicSelectionPage extends StatelessWidget {
   const TopicSelectionPage({super.key});
@@ -96,6 +97,7 @@ class TopicSelectionPage extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: () {
+            AudioManager().playSfx(AudioManager.sfxUiClick); // ✅ SFX
             Navigator.push(
               context,
               MaterialPageRoute(

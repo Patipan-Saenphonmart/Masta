@@ -44,6 +44,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_launcher_icons: ^0.14.4
   shared_preferences: ^2.5.5
+  audioplayers: ^6.1.0
 
 flutter_icons:
   android: true
@@ -70,6 +71,8 @@ flutter:
     - assets/images/
     - assets/tiles/
     - assets/images/world/
+    - assets/audio/bgm/
+    - assets/audio/sfx/
 
     
 

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flame/widgets.dart'; 
 import 'package:flame/components.dart';
-import 'game_data.dart';
-import 'game/rabbit_game.dart'; 
+import '../data/game_data.dart';
+import '../game/rabbit_game.dart'; 
+import '../utils/audio_manager.dart'; // ✅ Import AudioManager
 
 class CharacterPage extends StatefulWidget {
   const CharacterPage({super.key});
@@ -18,6 +19,7 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this); // 2 Tabs: Items, Skills
+    AudioManager().playBgm(AudioManager.bgmMenuPages); // ✅ BGM หน้า Character
   }
 
   // เช็คว่าใส่เกราะอยู่ไหม
@@ -52,8 +54,13 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
   }
 
   void _startAdventure() {
-    // ✅ เช็คว่าเคยเห็น intro cutscene หรือยัง
+    AudioManager().playSfx(AudioManager.sfxUiClick); // ✅ SFX
+    AudioManager().stopBgm(); // ✅ หยุด BGM ก่อนเข้าเกม
     final bool showCutscene = !GameData.hasSeenIntroCutscene;
+    
+    // ✅ Close the overlay dialog first before navigating
+    Navigator.pop(context); 
+    
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -64,93 +71,106 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      body: Container(
-        decoration: const BoxDecoration(
-          image: DecorationImage(image: AssetImage('assets/images/bg_quiz.png'),
-          fit: BoxFit.cover)
-          
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        width: double.infinity,
+        height: MediaQuery.of(context).size.height * 0.90, // Taller for vertical UI
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E), // Very dark retro background
+          border: Border.all(color: Colors.grey.shade500, width: 4), // Sharp border
+          borderRadius: BorderRadius.circular(8), // Small radius for retro feel
         ),
         child: Column(
           children: [
-            const SizedBox(height: 20),
-            _buildCharacterProfile(),
-            const SizedBox(height: 20),
+            // --- 1. Header (Close Button) ---
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                  onPressed: () {
+                    AudioManager().playSfx(AudioManager.sfxUiClick);
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
             
-            // --- ส่วนล่าง: Tab View ---
+            // --- 2. Vertical Character Display ---
+            _buildVerticalCharacterProfile(),
+            const SizedBox(height: 12),
+            
+            // --- 3. Inventory & Skills Area ---
             Expanded(
               child: Container(
                 width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFF8E1),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-                  boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -5))],
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2C2C2C), // Slightly lighter panel
+                  border: const Border(top: BorderSide(color: Colors.black, width: 4)),
                 ),
                 child: Column(
                   children: [
-                    // Tab Bar
-                    // Tab Bar — สไตล์ Wood Fantasy
+                    const SizedBox(height: 12),
+                    // Tab Bar (Retro Style)
                     Container(
                       margin: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF5D4037),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF4E342E), width: 2),
+                        color: Colors.black54,
+                        border: Border.all(color: Colors.grey.shade600, width: 2),
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: TabBar(
                         controller: _tabController,
                         labelColor: Colors.white,
-                        unselectedLabelColor: const Color(0xFFD7CCC8),
+                        unselectedLabelColor: Colors.grey.shade500,
                         indicatorSize: TabBarIndicatorSize.tab,
                         indicator: BoxDecoration(
-                          color: const Color(0xFF8D6E63),
-                          borderRadius: BorderRadius.circular(10),
+                          color: Colors.grey.shade700,
+                          borderRadius: BorderRadius.circular(2),
                         ),
-                        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                         tabs: const [
-                          Tab(icon: Icon(Icons.shield, size: 20), text: "อุปกรณ์"),
-                          Tab(icon: Icon(Icons.auto_awesome, size: 20), text: "สกิล"),
+                          Tab(icon: Icon(Icons.backpack, size: 18), text: "อุปกรณ์"),
+                          Tab(icon: Icon(Icons.auto_awesome, size: 18), text: "สกิล"),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 8),
                     
-                    // Tab Content
+                    // Tab Content (Grids)
                     Expanded(
                       child: TabBarView(
                         controller: _tabController,
                         children: [
-                          // Tab 1: Inventory
                           _buildInventoryGrid(),
-                          // Tab 2: Skills
                           _buildSkillsGrid(),
                         ],
                       ),
                     ),
                     
-                    // ปุ่มเริ่มเกม — เพิ่ม bottom padding ตาม Navigation Bar
-                    Padding(
-                      padding: EdgeInsets.only(
-                        left: 20,
-                        right: 20,
-                        top: 20,
-                        bottom: 20 + MediaQuery.of(context).padding.bottom,
+                    // --- 4. Start Button ---
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: const BoxDecoration(
+                        border: Border(top: BorderSide(color: Colors.black, width: 4)),
+                        color: Color(0xFF1E1E1E),
                       ),
                       child: SizedBox(
                         width: double.infinity,
-                        height: 60,
+                        height: 55,
                         child: ElevatedButton.icon(
                           onPressed: _startAdventure,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green[700],
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                            elevation: 5,
+                            backgroundColor: Colors.green.shade800,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), // Sharp retro button
+                            side: const BorderSide(color: Colors.lightGreen, width: 2), // Outline
                           ),
-                          icon: const Icon(Icons.explore, size: 28, color: Colors.white),
+                          icon: const Icon(Icons.play_arrow, size: 28, color: Colors.white),
                           label: const Text(
                             "ออกผจญภัย!",
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.2),
                           ),
                         ),
                       ),
@@ -165,29 +185,32 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
     );
   }
 
-  Widget _buildCharacterProfile() {
+  // ✅ New Vertical Profile Layout
+  Widget _buildVerticalCharacterProfile() {
     final String spritePath = _isArmorEquipped ? 'rabbit_idle_armor.png' : 'rabbit_idle.png';
-    
-    // ✅ แก้ไข: ปรับขนาด Texture Size ให้ถูกต้องตามไฟล์ภาพ
-    // ถ้าใส่เกราะ ใช้ขนาด 64.0 (เพราะภาพละเอียดกว่า), ถ้าไม่ใส่ใช้ 32.0
     final double textureSize = _isArmorEquipped ? 32.0 : 32.0;
-
-    // ✅ คำนวณ ATK เพื่อโชว์ (30 คือ base, +20 ถ้ามีดาบ)
     int currentAtk = 30 + (_isSwordEquipped ? 20 : 0);
 
     return Column(
       children: [
+        // Character Name
+        Text(
+          _isArmorEquipped ? "Armored Hero" : "Hero Rabbit",
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5),
+        ),
+        const SizedBox(height: 10),
+        
+        // Sprite on a "Pedestal"
         Stack(
-          alignment: Alignment.center,
+          alignment: Alignment.bottomCenter,
           children: [
+            // Dark shadow/pedestal base
             Container(
-              width: 160,
-              height: 160,
+              width: 90,
+              height: 20,
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.amber, width: 4),
-                boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
+                color: Colors.black87,
+                borderRadius: BorderRadius.circular(100), // Ellipse shadow
               ),
             ),
             SizedBox(
@@ -199,71 +222,60 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
                 data: SpriteAnimationData.sequenced(
                   amount: 4,          
                   stepTime: 0.2,      
-                  textureSize: Vector2.all(textureSize), // ✅ ใช้ค่าที่ถูกต้องตามชุด
+                  textureSize: Vector2.all(textureSize),
                 ),
               ),
             ),
-            Positioned(
-              bottom: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.redAccent,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-                child: Text(
-                  "Lv.${GameData.playerLevel}",
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-              ),
-            )
           ],
         ),
         const SizedBox(height: 15),
-        Text(
-          _isArmorEquipped ? "Armored Hero" : "Hero Rabbit",
-          style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            // โชว์ค่า Status จริงจาก GameData
-            _buildStatBadge("HP", "${GameData.maxHp}", Icons.favorite, Colors.redAccent),
-            // ✅ โชว์ ATK
-            _buildStatBadge("ATK", "$currentAtk", Icons.map, Colors.orange),
-            _buildStatBadge("DEF", "${GameData.defense}", Icons.shield, Colors.blueAccent),
-            _buildStatBadge("AGI", "${GameData.agility}", Icons.directions_run, Colors.greenAccent),
-          ],
-        ),
-      ],
-    );
-  }
 
-  Widget _buildStatBadge(String label, String value, IconData icon, Color color) {
-    return Column(
-      children: [
+        // Compact Stats Board (2x2 Grid style)
         Container(
-          padding: const EdgeInsets.all(10),
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            border: Border.all(color: color, width: 3),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+            color: Colors.black54,
+            border: Border.all(color: Colors.grey.shade700, width: 2),
+            borderRadius: BorderRadius.circular(4),
           ),
-          child: Icon(icon, color: color, size: 28),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          "$label: $value",
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildCompactStat("Lv", "${GameData.playerLevel}", Colors.amber),
+                  _buildCompactStat("HP", "${GameData.maxHp}", Colors.redAccent),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildCompactStat("ATK", "$currentAtk", Colors.orange),
+                  _buildCompactStat("DEF", "${GameData.defense}", Colors.blueAccent),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  // --- Grid สำหรับไอเทม ---
+  // ✅ Smaller, text-based stat builder for the vertical board
+  Widget _buildCompactStat(String label, String value, Color color) {
+    return SizedBox(
+      width: 100,
+      child: Row(
+        children: [
+          Text("$label: ", style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInventoryGrid() {
     if (GameData.inventory.isEmpty) {
       return const Center(child: Text("ไม่มีไอเทมในกระเป๋า", style: TextStyle(color: Colors.grey)));
@@ -276,9 +288,12 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
     final uniqueItems = inventoryCounts.keys.toList();
 
     return GridView.builder(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.8, 
+        crossAxisCount: 4, // 4 items per row for a more compact vertical list
+        crossAxisSpacing: 8, 
+        mainAxisSpacing: 8, 
+        childAspectRatio: 1.0, // Square boxes
       ),
       itemCount: uniqueItems.length,
       itemBuilder: (context, index) {
@@ -295,16 +310,18 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
     );
   }
 
-  // --- Grid สำหรับสกิล ---
   Widget _buildSkillsGrid() {
     if (GameData.unlockedSkills.isEmpty) {
       return const Center(child: Text("ยังไม่ได้เรียนรู้สกิลใดๆ", style: TextStyle(color: Colors.grey)));
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(12),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 0.8, 
+        crossAxisCount: 4, // 4 skills per row
+        crossAxisSpacing: 8, 
+        mainAxisSpacing: 8, 
+        childAspectRatio: 1.0, 
       ),
       itemCount: GameData.unlockedSkills.length,
       itemBuilder: (context, index) {
@@ -320,7 +337,6 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
     );
   }
 
-  // ✅ Item/Skill Detail Bottom Sheet พร้อม Stat Comparison
   void _showItemDetailSheet(String name, {required bool isSkill}) {
     String description = '';
     String effect = '';
@@ -345,24 +361,20 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Color(0xFFFFF8E1),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(top: BorderSide(color: Color(0xFF5D4037), width: 4)),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E), // Dark match
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+          border: Border(top: BorderSide(color: Colors.grey.shade500, width: 4)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Handle bar
-            Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(color: Colors.brown.shade300, borderRadius: BorderRadius.circular(2))),
-            // Icon + Name
             Row(children: [
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.black54,
+                  borderRadius: BorderRadius.circular(4),
                   border: Border.all(color: iconColor, width: 2),
                 ),
                 child: Icon(icon, size: 36, color: iconColor),
@@ -370,24 +382,24 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
               const SizedBox(width: 16),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF3E2723))),
+                  Text(name, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 4),
-                  Text(isSkill ? 'สกิล' : 'อุปกรณ์', style: TextStyle(fontSize: 13, color: Colors.brown.shade400)),
+                  Text(isSkill ? 'สกิล' : 'อุปกรณ์', style: TextStyle(fontSize: 13, color: Colors.grey.shade400)),
                 ]),
               ),
             ]),
             const SizedBox(height: 16),
-            // Description
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFF795548).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
+                color: Colors.black45,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.grey.shade800),
               ),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(description.isNotEmpty ? description : 'ไม่มีคำอธิบาย',
-                  style: const TextStyle(fontSize: 15, color: Color(0xFF4E342E))),
+                  style: const TextStyle(fontSize: 15, color: Colors.white)),
                 if (effect.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Row(children: [
@@ -398,15 +410,15 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
                 ],
               ]),
             ),
-            const SizedBox(height: 16),
-            // ปุ่ม Equip/Unequip
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              height: 48,
+              height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF795548),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  backgroundColor: Colors.grey.shade800,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), // Sharp retro button
+                  side: BorderSide(color: Colors.grey.shade600, width: 2),
                 ),
                 onPressed: () {
                   Navigator.pop(ctx);
@@ -420,7 +432,7 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
                   isSkill
                     ? (GameData.isSkillEquipped(name) ? 'ถอดสกิล' : 'ติดตั้งสกิล')
                     : (GameData.isEquipped(name) ? 'ถอดอุปกรณ์' : 'สวมใส่'),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
               ),
             ),
@@ -430,22 +442,20 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
     );
   }
 
-  // การ์ดแสดงผล (ใช้ร่วมกันทั้ง Item และ Skill)
+  // ✅ New Square, Retro Card Design
   Widget _buildSelectableCard(String name, int count, bool isEquipped, {required bool isSkill}) {
     IconData icon = Icons.help_outline;
     Color iconColor = Colors.grey;
-    String displayName = name;
 
     if (isSkill) {
-      if (name == 'fireball') { icon = Icons.whatshot; iconColor = Colors.orange; displayName = "Fireball"; }
-      else if (name == 'heal') { icon = Icons.favorite; iconColor = Colors.pink; displayName = "Heal"; }
-      else if (name == 'dash') { icon = Icons.run_circle; iconColor = Colors.blue; displayName = "Dash"; }
-      else if (name == 'ice_blast') { icon = Icons.ac_unit; iconColor = Colors.cyan; displayName = "Ice Blast"; }
+      if (name == 'fireball') { icon = Icons.whatshot; iconColor = Colors.orange; }
+      else if (name == 'heal') { icon = Icons.favorite; iconColor = Colors.pink; }
+      else if (name == 'dash') { icon = Icons.run_circle; iconColor = Colors.blue; }
+      else if (name == 'ice_blast') { icon = Icons.ac_unit; iconColor = Colors.cyan; }
     } else {
       if (name.contains("ยา")) { icon = Icons.local_drink; iconColor = Colors.red; }
       else if (name.contains("ดาบ")) { icon = Icons.flash_on; iconColor = Colors.amber; }
       else if (name.contains("เกราะ")) { icon = Icons.shield; iconColor = Colors.blue; }
-      displayName = name.split(" ")[0];
     }
 
     return Stack(
@@ -454,59 +464,33 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
           width: double.infinity,
           height: double.infinity,
           decoration: BoxDecoration(
-            color: isEquipped ? (isSkill ? Colors.purple.shade100 : Colors.amber.shade100) : Colors.white,
-            borderRadius: BorderRadius.circular(15),
+            color: isEquipped ? Colors.grey.shade800 : Colors.black54,
+            borderRadius: BorderRadius.circular(4), // Sharp corners
             border: Border.all(
-              color: isEquipped ? (isSkill ? Colors.purple : Colors.amber) : const Color(0xFFA1887F), 
+              color: isEquipped ? (isSkill ? Colors.purple : Colors.amber) : Colors.grey.shade700, 
               width: isEquipped ? 3 : 2
             ),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 32, color: iconColor),
-              ),
-              const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  displayName, 
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF4E342E)),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+          child: Center(
+            child: Icon(icon, size: 36, color: iconColor),
           ),
         ),
         if (count > 1)
           Positioned(
-            bottom: 8, right: 8,
+            bottom: 4, right: 4,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.brown,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white),
-              ),
-              child: Text("x$count", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(2)),
+              child: Text("x$count", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10)),
             ),
           ),
         if (isEquipped)
           Positioned(
-            top: 8, right: 8,
+            top: 4, right: 4,
             child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle),
-              child: const Icon(Icons.check, size: 16, color: Colors.white),
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(color: Colors.green.shade600, borderRadius: BorderRadius.circular(2)),
+              child: const Icon(Icons.check, size: 12, color: Colors.white),
             ),
           ),
       ],

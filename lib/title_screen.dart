@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'หน้าhome.dart';
-import 'game_data.dart';
+import 'page/home_page.dart';
+import 'data/game_data.dart';
 import 'utils/save_manager.dart';
+import 'utils/audio_manager.dart'; // ✅ Import AudioManager
 import 'game/rabbit_game.dart'; // ✅ Import RabbitGamePage
 
 class TitleScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _TitleScreenState extends State<TitleScreen> {
   void initState() {
     super.initState();
     _checkSaveData();
+    AudioManager().playBgm(AudioManager.bgmTitleScreen); // ✅ เล่น BGM หน้า Title
   }
 
   Future<void> _checkSaveData() async {
@@ -78,6 +80,7 @@ class _TitleScreenState extends State<TitleScreen> {
 
     if (!mounted) return;
     // ✅ ไปหน้า RabbitGamePage พร้อม Cutscene + Tutorial เลย
+    AudioManager().stopBgm(); // ✅ หยุด BGM ก่อนเข้าเกม
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
@@ -95,6 +98,7 @@ class _TitleScreenState extends State<TitleScreen> {
     bool success = await SaveManager.loadGame();
     if (!mounted) return;
     if (success) {
+      AudioManager().stopBgm(); // ✅ หยุด BGM ก่อนไป Home
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
@@ -154,7 +158,10 @@ class _TitleScreenState extends State<TitleScreen> {
 
               // ปุ่ม New Game
               _buildMenuButton(
-                  'เริ่มเกมใหม่', Icons.play_arrow_rounded, _startNewGame),
+                  'เริ่มเกมใหม่', Icons.play_arrow_rounded, () {
+                    AudioManager().playSfx(AudioManager.sfxUiClick); // ✅ SFX
+                    _startNewGame();
+                  }),
               const SizedBox(height: 24),
 
               // ปุ่ม Continue (ดำเนินการต่อ)

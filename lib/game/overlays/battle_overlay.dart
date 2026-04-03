@@ -3,13 +3,14 @@ import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../game_data.dart';
+import '../../data/game_data.dart';
 import '../../utils/save_manager.dart'; // ✅ Import SaveManager
 import '../../data/question_bank.dart';
 import '../rabbit_game.dart';
 import '../battle/battle_engine.dart';
 import '../battle/battle_models.dart';
 import '../components/enemy.dart';
+import '../../utils/audio_manager.dart'; // ✅ Import AudioManager
 
 /// ====================================================================
 /// Battle Overlay — สไตล์ Pokémon
@@ -215,6 +216,7 @@ class _BattleOverlayState extends State<BattleOverlay>
         phase = 'showResult';
       });
       _resultCtrl.forward(from: 0);
+      AudioManager().playSfx(AudioManager.sfxCorrect); // ✅ SFX ตอบถูก
     } else {
       setState(() {
         battleMessage = selectedChoice == null
@@ -224,6 +226,7 @@ class _BattleOverlayState extends State<BattleOverlay>
       });
       _shakeCtrl.forward(from: 0);
       _resultCtrl.forward(from: 0);
+      AudioManager().playSfx(AudioManager.sfxWrong); // ✅ SFX ตอบผิด
 
       widget.game.damagePlayer(lastResult!.finalDamage);
       widget.game.rabbit.playHit();
@@ -286,6 +289,7 @@ class _BattleOverlayState extends State<BattleOverlay>
 
       if (leveledUp) {
         widget.game.playerHP = widget.game.maxHP; // เติมเลือดเต็มเมื่อเวลอัพ
+        AudioManager().playSfx(AudioManager.sfxLevelUp); // ✅ SFX Level Up!
       }
 
       // ✅ เควสต์ปราบมอนสเตอร์
@@ -343,8 +347,12 @@ class _BattleOverlayState extends State<BattleOverlay>
   }
 
   String _enemySpriteAsset(String element) {
-    // ให้ทุกธาตุใช้รูป enemy_idle.png ชั่วคราวไปก่อน หรือตามที่ผู้ใช้แก้รูปไว้
-    return 'assets/images/enemy_idle.png';
+    // ✅ โหลดรูปตามธาตุ (64x64 Frames)
+    // อาคาน่าและไวต้าใช้ _idle แต่พ่นไฟและเน็กซัสใช้ชื่อหลัก
+    if (element == 'ignis' || element == 'nexus') {
+      return 'assets/images/battle_enemy_$element.png';
+    }
+    return 'assets/images/battle_enemy_${element}_idle.png';
   }
 
   // =====================================================================
@@ -442,8 +450,8 @@ class _BattleOverlayState extends State<BattleOverlay>
                             painter: _BattleSpritePainter(
                               image: _enemySpriteImage!,
                               animationValue: _spriteAnimCtrl.value,
-                              frameWidth: 32, // enemy_idle มีเฟรมละ 32 pixels
-                              frameHeight: 32,
+                              frameWidth: 64, // ✅ ศัตรูเปลี่ยนเป็น 64x64
+                              frameHeight: 64,
                             ),
                           ),
                         ),

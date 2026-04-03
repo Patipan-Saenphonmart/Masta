@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../game_data.dart';
+import '../../data/game_data.dart';
 import '../rabbit_game.dart';
 import '../../models/book.dart'; // อย่าลืม import Book
 
@@ -165,8 +165,7 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
                           if (isBook) {
                             // ✅ ดึงข้อมูลหนังสือและเปิดแบบ Popup
                             Book? book = GameData.getBookByTitle(itemName);
-                            if (book == null) {
-                              book = Book.regular(
+                            book ??= Book.regular(
                                 id: 'default_book',
                                 title: itemName,
                                 description: 'หนังสือธรรมดา',
@@ -174,7 +173,6 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
                                             'เนื้อหากำลังถูกพัฒนาเพิ่มเติม...\n\n'
                                             'คุณสามารถเพลิดเพลินกับการอ่านหนังสือเล่มนี้ได้',
                               );
-                            }
                             
                             showDialog(
                               context: context,

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'game_data.dart';
-import 'models/book.dart';
-import 'book_reading_page.dart';
+import '../data/game_data.dart';
+import '../models/book.dart';
+import '../page/book_reading_page.dart';
 
 class BookReadingDialog {
   static void show(BuildContext context, String itemTitle) {

@@ -1,7 +1,6 @@
 // book_reading_page.dart
 import 'package:flutter/material.dart';
-import 'game_data.dart';
-import 'models/book.dart';
+import '../models/book.dart';
 
 class BookReadingPage extends StatefulWidget {
   final Book book;

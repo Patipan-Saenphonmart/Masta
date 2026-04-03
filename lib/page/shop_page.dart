@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'game_data.dart';
-import 'character_page.dart';
+import '../data/game_data.dart';
+import '../dialog/character_dialog.dart';
+import '../utils/audio_manager.dart'; // ✅ Import AudioManager
 
 class ShopPage extends StatefulWidget {
   const ShopPage({super.key});
@@ -16,6 +17,7 @@ class _ShopPageState extends State<ShopPage> with SingleTickerProviderStateMixin
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    AudioManager().playBgm(AudioManager.bgmMenuPages); // ✅ BGM ร้านค้า
   }
 
   // ✅ อัปเดตชื่อสินค้าให้ตรงกับ GameData เพื่อให้ Stats ทำงานถูกต้อง
@@ -23,7 +25,8 @@ class _ShopPageState extends State<ShopPage> with SingleTickerProviderStateMixin
     {
       "name": "ยาเพิ่มเลือด (Potion)", 
       "price": 50,
-      "image": "assets/images/potion.png",
+      // Prefer user-requested images; UI has errorBuilder fallback if missing
+      "image": "assets/images/hp.png",
       "icon": Icons.local_drink,
       "color": Colors.redAccent,
       "description": "ฟื้นฟู HP 50 หน่วยทันที เหมาะสำหรับนักผจญภัยมือใหม่"
@@ -100,6 +103,7 @@ class _ShopPageState extends State<ShopPage> with SingleTickerProviderStateMixin
            print("Auto-equipped: $name");
         }
 
+        AudioManager().playSfx(AudioManager.sfxUiClick); // ✅ SFX
         _showResult(true, "ซื้อ $name สำเร็จ!");
       } else {
         _showResult(false, "เงินไม่พอ!");

@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../rabbit_game.dart';
-import '../../game_data.dart';
+import '../../data/game_data.dart';
 import '../components/enemy.dart';
 import 'package:flame/components.dart' as flame;
+import '../../utils/audio_manager.dart'; // ✅ Import AudioManager
 
 // =====================================================================
 // Cutscene Overlay — 3 องก์: The Summoning Void → The Awakening → First Encounter
@@ -143,6 +144,9 @@ class _CutsceneOverlayState extends State<CutsceneOverlay>
     widget.game.isCutsceneMode = true;
     widget.game.rabbit.setSleeping();
 
+    // ✅ เล่น BGM cutscene (จอดำ)
+    AudioManager().playBgm(AudioManager.bgmCutscene);
+
     // เริ่มแสดง dialogue แรกขององก์ 1
     Future.delayed(const Duration(milliseconds: 1500), () {
       if (mounted) _startTyping(_act1Dialogues[0]['text']!);
@@ -267,7 +271,7 @@ class _CutsceneOverlayState extends State<CutsceneOverlay>
 
   void _triggerWhiteFlash() {
     _isTransitioning = true;
-    debugPrint('🔊 SFX: Vingggg! (placeholder)');
+    AudioManager().playSfx(AudioManager.bgmWhiteFlash); // ✅ SFX Ving!
 
     setState(() {
       _showWhiteFlash = true;
@@ -384,7 +388,7 @@ class _CutsceneOverlayState extends State<CutsceneOverlay>
     _isTransitioning = true;
 
     // Lens flare / flash effect
-    debugPrint('🔊 SFX: Battle Theme Start! (placeholder)');
+    AudioManager().playBgm(AudioManager.bgmBattle); // ✅ เปลี่ยน BGM เป็นเพลงบัตเทิล
 
     setState(() {
       _showWhiteFlash = true;

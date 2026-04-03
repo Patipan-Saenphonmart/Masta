@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flame_tiled/flame_tiled.dart' hide Text;
 import 'package:flame/collisions.dart';
 
-import '../game_data.dart';
+import '../data/game_data.dart';
 import 'components/rabbit.dart';
 import 'components/enemy.dart';
 import 'components/tree.dart';
@@ -18,8 +18,11 @@ import 'overlays/game_over_overlay.dart';
 import 'overlays/quest_overlay.dart'; // ✅ Import QuestOverlay
 import 'overlays/inventory_overlay.dart'; // ✅ Import InventoryOverlay
 import 'overlays/cutscene_overlay.dart'; // ✅ Import CutsceneOverlay
+import 'overlays/minimap_overlay.dart'; // ✅ Import MiniMap
+import 'overlays/game_ending_overlay.dart'; // ✅ Import GameEndingOverlay
 import '../utils/save_manager.dart'; // ✅ Import SaveManager
-import '../หน้าhome.dart'; // ✅ Import Home Page
+import '../utils/audio_manager.dart'; // ✅ Import AudioManager
+import '../page/home_page.dart'; // ✅ Import Home Page
 
 // =====================================================================
 // 1. WIDGET: Game Page & UI Overlays
@@ -55,6 +58,10 @@ class RabbitGamePage extends StatelessWidget {
           'InventoryOverlay': (ctx, g) => InventoryOverlay(game: g),
           // ✅ Cutscene Overlay
           'CutsceneOverlay': (ctx, g) => CutsceneOverlay(game: g),
+          // ✅ MiniMap Overlay
+          'MiniMapOverlay': (ctx, g) => MiniMapOverlay(game: g),
+          // ✅ Game Ending Overlay
+          'GameEndingOverlay': (ctx, g) => GameEndingOverlay(game: g),
         },
         initialActiveOverlays: showIntroCutscene
             ? const ['CutsceneOverlay'] // ✅ เริ่มด้วย cutscene ไม่มี UI อื่น
@@ -333,12 +340,17 @@ class RabbitGamePage extends StatelessWidget {
               // 🎵 ปิด/เปิดเสียง
               _optionButton(
                   icon: Icons.music_note_rounded,
-                  label: "เปิด/ปิด ระบบเสียง",
+                  label: AudioManager().isMuted ? "เปิดเสียง" : "ปิดเสียง",
                   color: const Color(0xFF1976D2),
                   onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('ระบบเสียงจะมาในการอัปเดตถัดไป! 🎧',
-                            style: TextStyle(fontWeight: FontWeight.bold))));
+                    AudioManager().toggleMute();
+                    AudioManager().playSfx(AudioManager.sfxUiClick);
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(
+                            AudioManager().isMuted
+                                ? 'ปิดเสียงแล้ว 🔇'
+                                : 'เปิดเสียงแล้ว 🔊',
+                            style: const TextStyle(fontWeight: FontWeight.bold))));
                   }),
               const SizedBox(height: 12),
 
@@ -348,6 +360,8 @@ class RabbitGamePage extends StatelessWidget {
                   label: "กลับหน้าหลัก (Quit)",
                   color: const Color(0xFFD32F2F),
                   onTap: () async {
+                    await SaveManager.savePlayerPosition(
+                        game.rabbit.position.x, game.rabbit.position.y);
                     await SaveManager.saveGame(); // ✅ Auto-save ก่อนออก
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -359,6 +373,37 @@ class RabbitGamePage extends StatelessWidget {
                           pageBuilder:
                               (context, animation, secondaryAnimation) =>
                                   const LearningGameHome(), // ✅ ไป Home แทน TitleScreen
+                          transitionsBuilder:
+                              (context, animation, secondaryAnimation, child) {
+                            return FadeTransition(
+                                opacity: animation, child: child);
+                          },
+                        ),
+                        (route) => false,
+                      );
+                    }
+                  }),
+              const SizedBox(height: 12),
+
+              // 🗑️ ลบข้อมูลเซฟ (Clear Save)
+              _optionButton(
+                  icon: Icons.delete_forever_rounded,
+                  label: "ลบข้อมูลเซฟ (Reset)",
+                  color: Colors.orange.shade800,
+                  onTap: () async {
+                    // ล้างข้อมูลทั้งหมด
+                    await SaveManager.clearSave();
+                    GameData.reset();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('ลบข้อมูลเซฟเรียบร้อยแล้ว! 🗑️',
+                              style: TextStyle(fontWeight: FontWeight.bold))));
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        PageRouteBuilder(
+                          pageBuilder:
+                              (context, animation, secondaryAnimation) =>
+                                  const LearningGameHome(), // กลับไปหน้า Home
                           transitionsBuilder:
                               (context, animation, secondaryAnimation, child) {
                             return FadeTransition(
@@ -460,6 +505,7 @@ class RabbitGame extends FlameGame
   // ✅ เพิ่มตัวแปรเก็บสิ่งที่กำลังเจอ
   Portal? activePortal;
   Npc? activeNpc;
+  Npc? talkingNpc; // ✅ เก็บ NPC ที่กำลังคุยอยู่ เพื่อเปลี่ยนท่าทาง
   WorldItem? activeItem; // ✅ เก็บ Item ที่ยืนทับอยู่
 
   // --- Skill States ---
@@ -472,6 +518,22 @@ class RabbitGame extends FlameGame
   Vector2 joystickDirection = Vector2.zero();
   Vector2 lastDirection = Vector2(1, 0);
 
+  // --- Walk Step SFX ---
+  double _walkStepTimer = 0.0;
+  static const double _walkStepInterval = 0.35; // เล่นเสียงก้าวเดินทุก 0.35 วินาที
+  bool _isEnemyChasingPlayer = false;
+
+  // --- Auto save player position ---
+  double _positionSaveTimer = 0.0;
+  static const double _positionSaveInterval = 2.0;
+
+  // --- Respawn & Loot ---
+  final List<_RespawnData> _respawnWaitList = [];
+  
+  // --- Transition ---
+  bool _isTransitioning = false;
+  double _transitionAlpha = 0.0;
+
   // -------------------------------------------------------------------
   // Lifecycle Methods
   // -------------------------------------------------------------------
@@ -480,6 +542,10 @@ class RabbitGame extends FlameGame
   Future<void> onLoad() async {
     await super.onLoad();
     playerHP = maxHP;
+    final savedPos = await SaveManager.loadPlayerPosition();
+    final spawnPos = savedPos != null
+        ? Vector2(savedPos['x']!, savedPos['y']!)
+        : Vector2(600, 540);
 
     world = World();
     add(world);
@@ -495,16 +561,30 @@ class RabbitGame extends FlameGame
     rabbit = Rabbit()
       ..priority = 100
       ..size = Vector2(50, 50)
-      ..position = Vector2(100, 100);
+      ..position = spawnPos.clone();
     world.add(rabbit);
     cameraComponent.follow(rabbit);
 
-    await loadLevel('new.tmx', Vector2(600, 540));
+    await loadLevel('new.tmx', spawnPos);
+
+    // ✅ เล่น BGM overworld (ถ้าไม่ใช่ cutscene mode)
+    if (!isCutsceneMode) {
+      AudioManager().playBgm(AudioManager.bgmOverworld);
+    }
   }
 
   @override
   void update(double dt) {
     super.update(dt);
+
+    // ✅ ค่อยๆ จางหน้าจอออกหลังเปลี่ยนฉาก
+    if (_isTransitioning && !isLoading) {
+      _transitionAlpha -= dt * 2.0; // จางออกใน 0.5 วินาที
+      if (_transitionAlpha <= 0) {
+        _transitionAlpha = 0;
+        _isTransitioning = false;
+      }
+    }
 
     if (isLoading) return;
 
@@ -542,6 +622,9 @@ class RabbitGame extends FlameGame
       freezeTimer -= dt;
     }
 
+    // ✅ ตรวจสอบการ Respawn มอนสเตอร์
+    _updateRespawns(dt);
+
     world.children.whereType<PositionComponent>().forEach((component) {
       if (component is Rabbit ||
           component is Enemy ||
@@ -562,11 +645,55 @@ class RabbitGame extends FlameGame
       _checkInteractions();
       _updateEnemies(dt);
     }
+
+    _positionSaveTimer += dt;
+    if (_positionSaveTimer >= _positionSaveInterval) {
+      _positionSaveTimer = 0.0;
+      SaveManager.savePlayerPosition(rabbit.position.x, rabbit.position.y);
+      _updateExploration(); // ✅ อัปเดต Fog of War สำรวจแผนที่
+    }
+  }
+
+  // ✅ ระบบเปิดแผนที่ (Fog of War)
+  void _updateExploration() {
+    const double chunkSize = 150.0; // ขนาดพื้นที่ 1 ช่องที่จะเปิด
+    int chunkX = (rabbit.position.x / chunkSize).floor();
+    int chunkY = (rabbit.position.y / chunkSize).floor();
+    
+    bool newlyDiscovered = false;
+    // เปิดรอบตัวกระต่าย (ระยะการมองเห็น: รัศมี 1 chunk)
+    for (int dx = -1; dx <= 1; dx++) {
+      for (int dy = -1; dy <= 1; dy++) {
+        String key = "${chunkX + dx},${chunkY + dy}";
+        if (!GameData.exploredChunks.contains(key)) {
+          GameData.exploredChunks.add(key);
+          newlyDiscovered = true;
+        }
+      }
+    }
+    
+    // เซฟการค้นพบใหม่
+    if (newlyDiscovered) {
+      SaveManager.saveGame();
+    }
   }
 
   // -------------------------------------------------------------------
   // Update Logic Helpers
   // -------------------------------------------------------------------
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+
+    // ✅ วาด Transition (หน้าจอดำ)
+    if (_isTransitioning) {
+      canvas.drawRect(
+        size.toRect(),
+        Paint()..color = Colors.black.withOpacity(_transitionAlpha),
+      );
+    }
+  }
 
   void _updatePlayer(double dt) {
     if (rabbit.isHitPlaying) return;
@@ -576,6 +703,13 @@ class RabbitGame extends FlameGame
       rabbit.faceDirection(joystickDirection.x);
 
       lastDirection = joystickDirection.normalized();
+
+      // ✅ Walking step SFX (เล่นทุก interval)
+      _walkStepTimer += dt;
+      if (_walkStepTimer >= _walkStepInterval) {
+        _walkStepTimer = 0.0;
+        AudioManager().playWalkStep();
+      }
 
       double currentSpeed = 100.0 + (GameData.agility * 1.5);
       if (isDashing) currentSpeed *= 2.5;
@@ -617,6 +751,7 @@ class RabbitGame extends FlameGame
       if (!hitWallY) rabbit.position.y = nextY;
     } else {
       rabbit.setState(RabbitState.idle);
+      _walkStepTimer = 0.0; // ✅ Reset walk timer when idle
     }
   }
 
@@ -773,6 +908,7 @@ class RabbitGame extends FlameGame
   }
 
   void _updateEnemies(double dt) {
+    bool hasChasingEnemy = false;
     for (final e in world.children.whereType<Enemy>()) {
       if (e.isMounted && e.alive) {
         if (freezeTimer > 0) continue;
@@ -783,6 +919,7 @@ class RabbitGame extends FlameGame
         e.pathRecalculateTimer -= dt;
 
         if (distance < enemyChaseRange) {
+          hasChasingEnemy = true;
           // รีแคลคิวเลท Path ทุกๆ 0.5 วินาทีเพื่อไม่ให้หน่วงเครื่อง
           if (e.pathRecalculateTimer <= 0) {
             e.currentPath = findPathToPlayer(e.position);
@@ -862,15 +999,28 @@ class RabbitGame extends FlameGame
           inQuestion = true;
           answered = false;
           joystickDirection.setZero();
+          _walkStepTimer = 0.0; // ✅ Reset walk timer
           // ✅ ใช้ BattleOverlay แทน QuestionOverlay
+          AudioManager().playBgm(AudioManager.bgmBattle); // ✅ เปลี่ยน BGM เป็นเพลงบัตเทิล
           overlays.remove(
               'BattleOverlay'); // remove ก่อนเพื่อ rebuild ด้วย enemy ใหม่
           overlays.add('BattleOverlay');
           overlays.remove('SkillOverlay');
           overlays.remove('QuestOverlay'); // ✅ ซ่อนเควสต์ตอนต่อสู้
-          if (activePortal != null || activeNpc != null || activeItem != null)
+          if (activePortal != null || activeNpc != null || activeItem != null) {
             overlays.remove('ActionOverlay');
+          }
         }
+      }
+    }
+
+    if (!inQuestion) {
+      if (hasChasingEnemy && !_isEnemyChasingPlayer) {
+        _isEnemyChasingPlayer = true;
+        AudioManager().playBgm(AudioManager.bgmBattle);
+      } else if (!hasChasingEnemy && _isEnemyChasingPlayer) {
+        _isEnemyChasingPlayer = false;
+        AudioManager().playBgm(AudioManager.bgmOverworld);
       }
     }
   }
@@ -889,7 +1039,7 @@ class RabbitGame extends FlameGame
     else if (activePortal != null) {
       Vector2 targetPos = Vector2(100, 100);
       if (activePortal!.targetMap == 'house_interior.tmx') {
-        targetPos = Vector2(480, 270);
+        targetPos = Vector2(239, 141);
       } else if (activePortal!.targetMap == 'new.tmx') {
         targetPos = Vector2(650, 530);
       }
@@ -903,6 +1053,8 @@ class RabbitGame extends FlameGame
       // หรือเป็นชื่อไอเทม "Potion"
 
       String itemName = activeItem!.name;
+
+      AudioManager().playSfx(AudioManager.sfxPickUp); // ✅ SFX เก็บของ
 
       // ตรวจสอบว่าเป็นสกิลไหม (เช็คจากชื่อ หรือ custom property ก็ได้)
       // ตัวอย่างง่ายๆ: ถ้าชื่อเริ่มด้วย Skill: ให้ปลดล็อคสกิล
@@ -945,6 +1097,7 @@ class RabbitGame extends FlameGame
         freezeTimer = 3.0;
         break;
       case 'fireball':
+        AudioManager().playSfx(AudioManager.sfxFireAttack); // ✅ SFX ยิงไฟ
         final fireball = Fireball(
           position: rabbit.position.clone(),
           direction:
@@ -983,6 +1136,9 @@ class RabbitGame extends FlameGame
     isCutsceneMode = false;
     freezeTimer = 0; // ปลดล็อค freeze
     
+    // ✅ เล่น BGM overworld หลังจบ cutscene
+    AudioManager().playBgm(AudioManager.bgmOverworld);
+    
     // แสดง UI ปกติ
     overlays.add('SkillOverlay');
     overlays.add('BagOverlay');
@@ -995,6 +1151,8 @@ class RabbitGame extends FlameGame
 
   Future<void> loadLevel(String mapName, Vector2 targetSpawnPosition) async {
     if (isLoading) return;
+    _isTransitioning = true;
+    _transitionAlpha = 1.0;
     isLoading = true;
 
     activePortal = null;
@@ -1003,8 +1161,11 @@ class RabbitGame extends FlameGame
     overlays.remove('ActionOverlay');
 
     try {
-      debugPrint("🔄 Loading map: $mapName");
-      final newMap = await TiledComponent.load(mapName, Vector2(16, 16));
+      Vector2 tileSize = Vector2(16, 16);
+      if (mapName == 'new.tmx') {
+        tileSize = Vector2(64, 64);
+      }
+      final newMap = await TiledComponent.load(mapName, tileSize);
       newMap.priority = 0;
 
       // ลบของเก่าทั้งหมด
@@ -1076,20 +1237,65 @@ class RabbitGame extends FlameGame
               )..priority = 5);
               break;
             case 'Item':
+              // ✅ ตรวจสอบว่า Item นี้มีรูปภาพ (gid) ใน Tiled หรือไม่
+              Sprite? itemSprite;
+              if (obj.gid != null) {
+                itemSprite = await _getSpriteFromGid(obj.gid!, map);
+              }
+
               world.add(WorldItem(
                 position: Vector2(obj.x, obj.y),
                 size: Vector2(obj.width, obj.height),
                 name: obj.name.isNotEmpty ? obj.name : 'Unknown Item',
+                mapSprite: itemSprite, // ✅ ส่งรูปที่ดึงมาจาก Tiled เข้าไป
               )..priority = 5);
               break;
           }
         }
       }
 
+      final destTileSize = map.tileMap.destTileSize;
+
+      // ==========================================
+      // METHOD 1: Read Custom Properties (isSolid)
+      // ==========================================
+      for (final layer in map.tileMap.map.layers) {
+        if (layer is TileLayer) {
+          final tileData = layer.tileData;
+          if (tileData == null) continue;
+
+          for (int y = 0; y < layer.height; y++) {
+            for (int x = 0; x < layer.width; x++) {
+              final gid = tileData[y][x].tile;
+              
+              if (gid != 0) { 
+                final tile = map.tileMap.map.tileByGid(gid);
+                
+                if (tile != null) {
+                  final isSolid = tile.properties.getValue<bool>('isSolid') ?? false;
+                  
+                  if (isSolid) {
+                    world.add(Obstacle(
+                      position: Vector2(x * destTileSize.x, y * destTileSize.y),
+                      size: destTileSize,
+                    )); 
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // ==========================================
+      // METHOD 2: Read Object Layer ('Collisions')
+      // ==========================================
       final colLayer = map.tileMap.getLayer<ObjectGroup>('Collisions');
       if (colLayer != null) {
         for (final obj in colLayer.objects) {
           world.add(Obstacle(
+            // Notice we do NOT multiply by destTileSize here. 
+            // Object layers already use exact pixel coordinates!
             position: Vector2(obj.x, obj.y),
             size: Vector2(obj.width, obj.height),
           ));
@@ -1128,7 +1334,73 @@ class RabbitGame extends FlameGame
     } catch (e) {
       debugPrint("❌ Error loading map: $e");
     } finally {
+      // ✅ จบการเปลี่ยนฉาก: ค่อยๆ จางสีดำออก
+      await Future.delayed(const Duration(milliseconds: 500));
+      _isTransitioning = false;
       isLoading = false;
+    }
+  }
+
+  // ✅ ฟังชั่นสปอนมอนสเตอร์พร้อมเก็บข้อมูลจุดเกิดเพื่อ Respawn
+  void spawnEnemy(Enemy enemy) {
+    world.add(enemy);
+  }
+
+  void handleEnemyDeath(Enemy enemy) {
+    // 1. สปอนของรางวัล (Loot)
+    _spawnLoot(enemy.position.clone(), enemy.element);
+
+    // 2. เก็บเข้าคิวเกิดใหม่ (30 วินาที)
+    _respawnWaitList.add(_RespawnData(
+      position: enemy.position.clone(),
+      name: enemy.enemyName,
+      element: enemy.element,
+      strongSubject: enemy.strongSubject,
+      weakSubject: enemy.weakSubject,
+      proficiency: Map.from(enemy.proficiency),
+      timer: 30.0,
+    ));
+  }
+
+  void _updateRespawns(double dt) {
+    for (int i = _respawnWaitList.length - 1; i >= 0; i--) {
+      _respawnWaitList[i].timer -= dt;
+      if (_respawnWaitList[i].timer <= 0) {
+        final data = _respawnWaitList.removeAt(i);
+        spawnEnemy(Enemy(
+          position: data.position,
+          enemyName: data.name,
+          element: data.element,
+          strongSubject: data.strongSubject,
+          weakSubject: data.weakSubject,
+          proficiency: data.proficiency,
+        ));
+      }
+    }
+  }
+
+  void _spawnLoot(Vector2 position, String element) {
+    final rand = Random().nextDouble();
+    // 70% chance spawn gold, 20% potion, 10% rare book
+    if (rand < 0.7) {
+      world.add(WorldItem(
+        position: position + Vector2(0, 10),
+        size: Vector2(16, 16),
+        name: 'Gold (10-50)',
+      ));
+    } else if (rand < 0.9) {
+      world.add(WorldItem(
+        position: position + Vector2(10, 0),
+        size: Vector2(16, 16),
+        name: 'HP Potion (S)',
+      ));
+    } else {
+       // Rare case: drop a random subject book
+       world.add(WorldItem(
+        position: position + Vector2(-10, -10),
+        size: Vector2(24, 24),
+        name: 'story: จดหมายลับแห่งธาตุ$element',
+      ));
     }
   }
 
@@ -1189,45 +1461,6 @@ class RabbitGame extends FlameGame
   }
 
   // -------------------------------------------------------------------
-  // ส่วนที่ 2: แก้ไข Update เพื่อให้ลำดับ Layer ของต้นไม้ทำงานถูกต้อง
-  // -------------------------------------------------------------------
-  // @override
-  // void update(double dt) {
-  //   super.update(dt);
-
-  //   if (isLoading) return;
-  //   if (collisionCooldown > 0) collisionCooldown -= dt;
-  //   if (isDashing) {
-  //     dashTimer -= dt;
-  //     if (dashTimer <= 0) isDashing = false;
-  //   }
-  //   if (freezeTimer > 0) freezeTimer -= dt;
-
-  //   // ✅ เพิ่มเงื่อนไขเช็ค Tree เข้าไปในลูปจัดลำดับความลึก (Z-Index)
-  //   world.children.whereType<PositionComponent>().forEach((component) {
-  //     if (component is Rabbit ||
-  //         component is Enemy ||
-  //         component is Npc ||
-  //         component is Decoration ||
-  //         component is WorldItem ||
-  //         component is Tree) { // <--- เพิ่ม Tree ตรงนี้!
-
-  //       double bottomY = component.position.y;
-  //       if (component.anchor == Anchor.center) {
-  //         bottomY += component.size.y / 2;
-  //       }
-  //       component.priority = bottomY.toInt();
-  //     }
-  //   });
-
-  //   if (!inQuestion && !isDialogActive) {
-  //     _updatePlayer(dt);
-  //     _checkInteractions();
-  //     _updateEnemies(dt);
-  //   }
-  // }
-
-  // -------------------------------------------------------------------
   // UI & Input Callbacks
   // -------------------------------------------------------------------
 
@@ -1238,6 +1471,13 @@ class RabbitGame extends FlameGame
   void showDialog(String message) {
     currentDialogMessage = message;
     isDialogActive = true;
+    
+    // ✅ เปลี่ยนท่าทาง NPC เป็นตื่น (Idle)
+    if (activeNpc != null) {
+      talkingNpc = activeNpc;
+      talkingNpc?.setState(NpcState.idle);
+    }
+
     overlays.add('DialogOverlay');
     overlays.remove('SkillOverlay');
     overlays.remove('ActionOverlay');
@@ -1245,6 +1485,11 @@ class RabbitGame extends FlameGame
 
   void closeDialog() {
     isDialogActive = false;
+    
+    // ✅ กลับไปนอน (Sleeping)
+    talkingNpc?.setState(NpcState.sleeping);
+    talkingNpc = null;
+
     overlays.remove('DialogOverlay');
     overlays.add('SkillOverlay');
   }
@@ -1278,6 +1523,7 @@ class RabbitGame extends FlameGame
 
   void damagePlayer(int dmg) {
     playerHP = (playerHP - dmg).clamp(0, maxHP);
+    AudioManager().playSfx(AudioManager.sfxGetHit); // ✅ SFX โดนตี
   }
 
   void healPlayer() {
@@ -1288,12 +1534,22 @@ class RabbitGame extends FlameGame
   void onBattleWon() {
     if (enemy != null) {
       enemy!.die();
+
+      // ✅ Game Ending Condition: ชนะบอสใหญ่
+      if (enemy!.enemyName.toLowerCase().contains('บอส') || 
+          enemy!.enemyName.toLowerCase().contains('boss')) {
+        overlays.remove('BattleOverlay');
+        overlays.add('GameEndingOverlay');
+        return; // ไม่ต้องรันโค้ดต่อ
+      }
     }
     inQuestion = false;
+    _isEnemyChasingPlayer = false;
     collisionCooldown = 2.0;
     overlays.remove('BattleOverlay');
     overlays.add('SkillOverlay');
     overlays.add('QuestOverlay'); // ✅ กลับมาแสดงเควสต์
+    AudioManager().playBgm(AudioManager.bgmOverworld); // ✅ กลับไปเพลง overworld
   }
 
   void onBattleLost() {
@@ -1305,10 +1561,12 @@ class RabbitGame extends FlameGame
     }
     rabbit.playHit();
     inQuestion = false;
+    _isEnemyChasingPlayer = false;
     collisionCooldown = 2.0;
     overlays.remove('BattleOverlay');
     overlays.add('SkillOverlay');
     overlays.add('QuestOverlay'); // ✅ กลับมาแสดงเควสต์
+    AudioManager().playBgm(AudioManager.bgmOverworld); // ✅ กลับไปเพลง overworld
   }
 
   // ✅ ฟังก์ชันทิ้งของบนพื้น
@@ -1346,29 +1604,22 @@ class RabbitGame extends FlameGame
 
     world.add(droppedItem);
   }
+
+  @override
+  void onRemove() {
+    SaveManager.savePlayerPosition(rabbit.position.x, rabbit.position.y);
+    AudioManager().stopWalkStep();
+    super.onRemove();
+  }
 }
 
 // =====================================================================
 // 3. HELPER CLASSES
 // =====================================================================
 
-class HpBar extends PositionComponent {
-  final RabbitGame game;
-  HpBar(this.game);
-  @override
-  void render(Canvas canvas) {
-    super.render(canvas);
-    const width = 100.0;
-    const height = 10.0;
-    final hpPercent = (game.playerHP / game.maxHP).clamp(0.0, 1.0);
-    final bg = Paint()..color = Colors.red.withOpacity(0.3);
-    final fg = Paint()..color = Colors.green;
-    canvas.drawRect(Rect.fromLTWH(0, 0, width, height), bg);
-    canvas.drawRect(Rect.fromLTWH(0, 0, width * hpPercent, height), fg);
-  }
-}
+enum NpcState { sleeping, idle }
 
-class Npc extends PositionComponent with HasGameRef<RabbitGame> {
+class Npc extends SpriteAnimationGroupComponent<NpcState> with HasGameRef<RabbitGame> {
   final String message;
   Npc(
       {required Vector2 position,
@@ -1376,11 +1627,50 @@ class Npc extends PositionComponent with HasGameRef<RabbitGame> {
       required this.message}) {
     this.position = position;
     this.size = size;
+    anchor = Anchor.center; // ✅ ใช้ Anchor center เพื่อให้หมุน/ขยับง่าย
   }
+
+  @override
+  Future<void> onLoad() async {
+    await super.onLoad();
+
+    // 💤 ท่าทางตอนนอน (192x32, 6 Frames)
+    final sleepImage = await gameRef.images.load('npc_sleep.png');
+    final sleepAnim = SpriteAnimation.fromFrameData(
+      sleepImage,
+      SpriteAnimationData.sequenced(
+        amount: 6,
+        stepTime: 0.3,
+        textureSize: Vector2(32, 32),
+      ),
+    );
+
+    // 👀 ท่าทางตอนคุย (160x32, 5 Frames)
+    final idleImage = await gameRef.images.load('npc_idle.png');
+    final idleAnim = SpriteAnimation.fromFrameData(
+      idleImage,
+      SpriteAnimationData.sequenced(
+        amount: 5,
+        stepTime: 0.2,
+        textureSize: Vector2(32, 32),
+      ),
+    );
+
+    animations = {
+      NpcState.sleeping: sleepAnim,
+      NpcState.idle: idleAnim,
+    };
+
+    current = NpcState.sleeping;
+  }
+
+  void setState(NpcState state) {
+    current = state;
+  }
+
   @override
   void render(Canvas canvas) {
-    canvas.drawRect(
-        size.toRect(), Paint()..color = Colors.blueAccent.withOpacity(0.3));
+    super.render(canvas);
   }
 }
 
@@ -1421,26 +1711,71 @@ class Decoration extends SpriteComponent {
 }
 
 // ✅ Class สำหรับไอเทมในฉาก
-class WorldItem extends PositionComponent {
+class WorldItem extends SpriteAnimationComponent with HasGameRef<RabbitGame> {
   final String name;
-  WorldItem(
-      {required Vector2 position, required Vector2 size, required this.name}) {
+  final Sprite? mapSprite; // ✅ เพิ่มตัวแปรสำหรับรับ Sprite จาก Tiled
+
+  WorldItem({
+    required Vector2 position, 
+    required Vector2 size, 
+    required this.name,
+    this.mapSprite, // ✅ รับค่า mapSprite
+  }) {
     this.position = position;
     this.size = size;
+    anchor = Anchor.bottomLeft;
   }
 
   @override
-  void render(Canvas canvas) {
-    // วาดกล่องสีเขียวแทนไอเทม (ถ้ามีรูป ให้เปลี่ยนเป็น SpriteComponent)
-    canvas.drawRect(
-        size.toRect(), Paint()..color = Colors.greenAccent.withOpacity(0.7));
-    // วาดขอบ
-    canvas.drawRect(
-        size.toRect(),
-        Paint()
-          ..color = Colors.white
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2);
+  Future<void> onLoad() async {
+    // ✅ 1) ถ้ามี sprite จาก Tiled ให้ใช้เป็นแอนิเมชันเฟรมเดียว
+    if (mapSprite != null) {
+      animation = SpriteAnimation.spriteList([mapSprite!], stepTime: 1.0);
+      await super.onLoad();
+      return;
+    }
+
+    // ✅ 2) Coin drop: sprite sheet 16x16, 15 frames
+    if (name.toLowerCase().contains('gold') || name.contains('เหรียญ')) {
+      final coinImage = await gameRef.images.load('coin1_16x16.png');
+      size = Vector2(16, 16);
+      animation = SpriteAnimation.fromFrameData(
+        coinImage,
+        SpriteAnimationData.sequenced(
+          amount: 15,
+          stepTime: 0.08,
+          textureSize: Vector2(16, 16),
+        ),
+      );
+      await super.onLoad();
+      return;
+    }
+
+    // ✅ 3) อื่น ๆ ใช้ภาพเดี่ยว (แอนิเมชัน 1 เฟรม)
+    String spriteFile = 'arrow.png';
+    if (name.contains('story') || name.contains('เรื่องเล่า')) {
+      spriteFile = 'book_story.png';
+      size = Vector2(32, 32);
+    } else if (name.contains('question') || name.contains('คำถาม')) {
+      spriteFile = 'book_questions.png';
+      size = Vector2(32, 32);
+    } else if (name.toLowerCase().contains('potion') || name.contains('ยา')) {
+      size = Vector2(16, 16);
+      for (final file in const <String>['hp.png', 'h.png', 'potion.png']) {
+        try {
+          final s = await gameRef.loadSprite(file);
+          animation = SpriteAnimation.spriteList([s], stepTime: 1.0);
+          await super.onLoad();
+          return;
+        } catch (_) {
+          // try next
+        }
+      }
+    }
+
+    final fallbackSprite = await gameRef.loadSprite(spriteFile);
+    animation = SpriteAnimation.spriteList([fallbackSprite], stepTime: 1.0);
+    await super.onLoad();
   }
 }
 
@@ -1487,4 +1822,25 @@ class Fireball extends SpriteAnimationComponent
       removeFromParent();
     }
   }
+}
+
+// ✅ Class สำหรับเก็บข้อมูลสำหรับเรียกมอนสเตอร์กลับมาเกิดใหม่
+class _RespawnData {
+  final Vector2 position;
+  final String name;
+  final String element;
+  final String strongSubject;
+  final String weakSubject;
+  final Map<String, double> proficiency;
+  double timer;
+
+  _RespawnData({
+    required this.position,
+    required this.name,
+    required this.element,
+    required this.strongSubject,
+    required this.weakSubject,
+    required this.proficiency,
+    required this.timer,
+  });
 }

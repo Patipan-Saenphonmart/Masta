@@ -3,7 +3,7 @@ import 'package:flame/sprite.dart';
 import 'package:flame/game.dart';
 import 'package:flame/collisions.dart';
 // สำหรับ Colors
-import '../../game_data.dart'; // ✅ Import GameData
+import '../../data/game_data.dart'; // ✅ Import GameData
 
 enum RabbitState { idle, run, jump, hit, dead, sleeping }
 

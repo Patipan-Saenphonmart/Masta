@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'package:flutter/material.dart';
+import '../rabbit_game.dart';
 
 enum EnemyState { idle, walk, run, hit, dead }
 
@@ -47,7 +48,7 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
   })  : proficiency = proficiency ?? _defaultProficiency(element),
         super(
           position: position ?? Vector2.zero(),
-          size: Vector2.all(32),
+          size: Vector2.all(64), // ✅ ปรับขนาดเป็น 64 ตามเฟรม
           anchor: Anchor.center,
           current: EnemyState.idle,
         );
@@ -85,24 +86,22 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
   Future<void> onLoad() async {
     await super.onLoad();
 
-    // 1. เพิ่ม Hitbox
+    // 1. เพิ่ม Hitbox — ปรับขนาดให้เข้ากับเฟรม 64x64
     add(RectangleHitbox(
-      position: Vector2(4, 4),
-      size: Vector2(24, 24),
+      position: Vector2(16, 16),
+      size: Vector2(32, 32),
       isSolid: true,
     ));
 
-    // 2. ✅ สร้างหลอดเลือด (HP Bar)
-    // พื้นหลังหลอดเลือด (สีแดงจางๆ)
+    // 2. ✅ สร้างหลอดเลือด (HP Bar) — ย้ายให้พ้นหัวเฟรมสูงขึ้น
     hpBg = RectangleComponent(
-      position: Vector2(0, -8), // อยู่บนหัวเล็กน้อย
-      size: Vector2(32, 4),     // ความกว้างเท่าตัว (32)
+      position: Vector2(16, -10),
+      size: Vector2(32, 4),
       paint: Paint()..color = Colors.red.withOpacity(0.3),
     );
     
-    // หลอดเลือดจริง (สีเขียว)
     hpBar = RectangleComponent(
-      position: Vector2(0, -8),
+      position: Vector2(16, -10),
       size: Vector2(32, 4),
       paint: Paint()..color = Colors.green,
     );
@@ -110,46 +109,50 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
     add(hpBg);
     add(hpBar);
 
-    // 3. โหลดภาพและ Animation
-    final idleImage = await gameRef.images.load('enemy_idle.png');
-    final walkImage = await gameRef.images.load('enemy_walk.png');
-    final runImage = await gameRef.images.load('enemy_run.png');
-    final hitImage = await gameRef.images.load('enemy_hit.png');
-    final deadImage = await gameRef.images.load('enemy_hit.png');
+    // 3. ✅ โหลดภาพและ Animation ตามธาตุมอนสเตอร์ (64x64 Frames)
+    String prefix = 'battle_enemy_$element';
+    
+    // ✅ จัดการเรื่องชื่อไฟล์ (อาคาน่าและไวต้าใช้ _idle แต่พ่นไฟใช้ชื่อหลักเลย)
+    String idleFile = element == 'ignis' || element == 'nexus' ? '$prefix.png' : '${prefix}_idle.png';
+    String walkFile = '${prefix}_walk.png';
+    String hitFile = '${prefix}_hit.png';
+    String deadFile = '${prefix}_dead.png';
+
+    final idleImage = await gameRef.images.load(idleFile);
+    final walkImage = await gameRef.images.load(walkFile);
+    final hitImage = await gameRef.images.load(hitFile);
+    final deadImage = await gameRef.images.load(deadFile);
+
+    // การกำหนดจำนวนเฟรมต่อธาตุ (อิงจากขนาดภาพที่ตรวจพบ 320=5f, 512=8f, 384=6f)
+    int idleFrames = 5;
+    int walkFrames = 8;
+    int hitFrames = 5;
+    int deadFrames = 6;
 
     final idleAnim = SpriteAnimation.fromFrameData(
       idleImage,
       SpriteAnimationData.sequenced(
-        amount: 4,
+        amount: idleFrames,
         stepTime: 0.3,
-        textureSize: Vector2(32, 32),
+        textureSize: Vector2(64, 64),
       ),
     );
     
     final walkAnim = SpriteAnimation.fromFrameData(
       walkImage,
       SpriteAnimationData.sequenced(
-        amount: 4,
-        stepTime: 0.2,
-        textureSize: Vector2(32, 32),
-      ),
-    );
-
-    final runAnim = SpriteAnimation.fromFrameData(
-      runImage,
-      SpriteAnimationData.sequenced(
-        amount: 4,
-        stepTime: 0.12,
-        textureSize: Vector2(32, 32),
+        amount: walkFrames,
+        stepTime: 0.15,
+        textureSize: Vector2(64, 64),
       ),
     );
 
     final hitAnim = SpriteAnimation.fromFrameData(
       hitImage,
       SpriteAnimationData.sequenced(
-        amount: _hitFrames,
+        amount: hitFrames,
         stepTime: _hitStepTime,
-        textureSize: Vector2(32, 32),
+        textureSize: Vector2(64, 64),
         loop: false,
       ),
     );
@@ -157,9 +160,9 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
     final deadAnim = SpriteAnimation.fromFrameData(
       deadImage,
       SpriteAnimationData.sequenced(
-        amount: 4,
-        stepTime: 0.2,
-        textureSize: Vector2(32, 32),
+        amount: deadFrames,
+        stepTime: 0.15,
+        textureSize: Vector2(64, 64),
         loop: false,
       ),
     );
@@ -167,7 +170,7 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
     animations = {
       EnemyState.idle: idleAnim,
       EnemyState.walk: walkAnim,
-      EnemyState.run: runAnim,
+      EnemyState.run: walkAnim, // Overwatch run ใช้ walk เหมือนกัน
       EnemyState.hit: hitAnim,
       EnemyState.dead: deadAnim,
     };
@@ -231,6 +234,12 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
   void die() {
     if (!alive) return;
     setState(EnemyState.dead);
+    
+    // ✅ แจ้งเตือนเมนเกมเพื่อดรอปของและเริ่มคิวเกิดใหม่
+    if (gameRef is RabbitGame) {
+      (gameRef as RabbitGame).handleEnemyDeath(this);
+    }
+
     Future.delayed(const Duration(seconds: 1), () {
       removeFromParent();
     });

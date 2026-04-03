@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../game_data.dart';
+import '../data/game_data.dart';
 
 class SaveManager {
   static const String _saveKey = 'rabbit_game_save_data';
+  static const String _playerPosXKey = 'player_pos_x';
+  static const String _playerPosYKey = 'player_pos_y';
 
   static Future<void> saveGame() async {
     final prefs = await SharedPreferences.getInstance();
@@ -35,6 +37,22 @@ class SaveManager {
   static Future<void> clearSave() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_saveKey);
+    await prefs.remove(_playerPosXKey);
+    await prefs.remove(_playerPosYKey);
     print("Save data cleared.");
+  }
+
+  static Future<void> savePlayerPosition(double x, double y) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_playerPosXKey, x);
+    await prefs.setDouble(_playerPosYKey, y);
+  }
+
+  static Future<Map<String, double>?> loadPlayerPosition() async {
+    final prefs = await SharedPreferences.getInstance();
+    final x = prefs.getDouble(_playerPosXKey);
+    final y = prefs.getDouble(_playerPosYKey);
+    if (x == null || y == null) return null;
+    return {'x': x, 'y': y};
   }
 }

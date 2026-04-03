@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../rabbit_game.dart';
-import '../../game_data.dart';
+import '../../data/game_data.dart';
 
 class SkillOverlay extends StatefulWidget {
   final RabbitGame game;
@@ -240,6 +240,34 @@ class _SkillOverlayState extends State<SkillOverlay>
                   ],
                 ),
               ],
+            ),
+          ),
+        ),
+
+        // --- Map Button (ขวาบน) ---
+        Positioned(
+          top: 80,
+          right: 16,
+          child: GestureDetector(
+            onTap: () {
+              // เปิด MiniMap
+              if (!widget.game.overlays.isActive('MiniMapOverlay')) {
+                widget.game.overlays.add('MiniMapOverlay');
+              } else {
+                widget.game.overlays.remove('MiniMapOverlay');
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF3E2723),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.amber, width: 2),
+                boxShadow: const [
+                  BoxShadow(color: Colors.black45, blurRadius: 4, offset: Offset(0, 3)),
+                ]
+              ),
+              child: const Icon(Icons.map_outlined, color: Colors.white, size: 28),
             ),
           ),
         ),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'game_data.dart';
-import 'book_reading_dialog.dart';
+import '../data/game_data.dart';
+import '../dialog/book_reading_dialog.dart';
 
 class WarehousePage extends StatefulWidget {
   const WarehousePage({super.key});
@@ -356,6 +356,7 @@ class _WarehousePageState extends State<WarehousePage> with SingleTickerProvider
     IconData icon = Icons.help_outline;
     Color iconColor = Colors.grey;
     String displayName = name;
+    String? imagePath;
 
     if (isSkill) {
       if (name == 'fireball') { icon = Icons.whatshot; iconColor = Colors.orange; displayName = "Fireball"; }
@@ -364,9 +365,15 @@ class _WarehousePageState extends State<WarehousePage> with SingleTickerProvider
       else if (name == 'ice_blast') { icon = Icons.ac_unit; iconColor = Colors.cyan; displayName = "Ice Blast"; }
     } else {
       if (isBook) { 
-        icon = Icons.menu_book; 
         iconColor = Colors.brown; 
         displayName = name.split(" ")[0];
+        if (name.contains("หนังสือบันทึกโจทย์")) {
+           imagePath = 'assets/images/book_questions.png';
+        } else if (name.contains("บันทึกแห่งจอมปราชญ์")) {
+           imagePath = 'assets/images/book_story.png';
+        } else {
+           imagePath = 'assets/images/book_questions.png'; 
+        }
       }
       else if (name.contains("ยา")) { icon = Icons.local_drink; iconColor = Colors.red; }
       else if (name.contains("ดาบ")) { icon = Icons.flash_on; iconColor = Colors.amber; }
@@ -391,9 +398,15 @@ class _WarehousePageState extends State<WarehousePage> with SingleTickerProvider
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: iconColor.withOpacity(0.1), shape: BoxShape.circle),
-                  child: Icon(icon, size: 36, color: iconColor),
+                  width: 40,
+                  height: 40,
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    image: imagePath != null ? DecorationImage(image: AssetImage(imagePath), fit: BoxFit.cover) : null,
+                  ),
+                  child: imagePath == null ? Icon(icon, size: 30, color: iconColor) : null,
                 ),
                 const SizedBox(height: 10),
                 Padding(

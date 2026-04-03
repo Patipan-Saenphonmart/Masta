@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'supabase_config.dart';
-import 'game_data.dart';
+import '../config/supabase_config.dart';
+import '../data/game_data.dart';
+import '../utils/audio_manager.dart'; // ✅ Import AudioManager
 
 class QuizPage extends StatefulWidget {
   final String topic;
@@ -26,6 +27,7 @@ class _QuizPageState extends State<QuizPage> {
   void initState() {
     super.initState();
     loadQuestions();
+    AudioManager().playBgm(AudioManager.bgmMenuPages); // ✅ BGM หน้า Quiz
   }
 
   Future<void> loadQuestions() async {
@@ -57,10 +59,12 @@ class _QuizPageState extends State<QuizPage> {
     });
 
     if (correct) {
+      AudioManager().playSfx(AudioManager.sfxCorrect); // ✅ SFX ตอบถูก
       // บันทึกคำถามที่ตอบถูกลงหนังสือบันทึกโจทย์
       GameData.recordQuestLogEntry(q, choice);
       // เสียง Effect หรือ Animation ตรงนี้ได้
     } else {
+      AudioManager().playSfx(AudioManager.sfxWrong); // ✅ SFX ตอบผิด
       setState(() {
         playerHP = (playerHP - 10).clamp(0, maxHP);
       });

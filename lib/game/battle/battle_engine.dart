@@ -1,4 +1,4 @@
-import '../../game_data.dart';
+import '../../data/game_data.dart';
 import '../components/enemy.dart';
 import 'battle_models.dart';
 

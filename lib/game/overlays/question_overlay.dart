@@ -1,7 +1,7 @@
 import 'dart:math';
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../supabase_config.dart';
+import '../../config/supabase_config.dart';
 import '../rabbit_game.dart';
 
 class QuestionOverlay extends StatefulWidget {

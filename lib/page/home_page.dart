@@ -4,13 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; //  สำหรับ rootBundle
 import 'topic_selection_page.dart';
 import 'shop_page.dart';
-import 'character_page.dart';
+import '../dialog/character_dialog.dart';
 import 'event_page.dart';
-import 'rank_page.dart';
-import 'friends_page.dart';
 import 'warehouse_page.dart';
-import 'game_data.dart'; // Import GameData เพื่อใช้ค่าจริง
-
+import '../data/game_data.dart'; // Import GameData เพื่อใช้ค่าจริง
+import '../utils/audio_manager.dart'; // ✅ Import AudioManager
 
 class LearningGameHome extends StatefulWidget {
   const LearningGameHome({super.key});
@@ -29,6 +27,7 @@ class _LearningGameHomeState extends State<LearningGameHome>
   void initState() {
     super.initState();
     _loadSpriteImage(); // ✅ เรียกฟังก์ชันโหลดภาพ
+    AudioManager().playBgm(AudioManager.bgmMenuPages); // ✅ เล่น BGM หน้า Home
 
     // ✅ Setup Animation: สำหรับเล่น sprite sheet วนลูป
     // สมมติว่ามี 4 เฟรม, เฟรมละ 150ms = 600ms (ปรับแก้ตามจำนวนเฟรมจริงของภาพ)
@@ -59,43 +58,37 @@ class _LearningGameHomeState extends State<LearningGameHome>
 
   // ฟังก์ชันนำทาง (คงเดิม ห้ามลบ)
   void onButtonPressed(String label) {
+    AudioManager().playSfx(AudioManager.sfxUiClick); // ✅ SFX ทุกปุ่ม
     if (label == "แบบทดสอบ") {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const TopicSelectionPage()),
       );
     } else if (label == "ออกผจญภัย") {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const CharacterPage()),
+      showDialog(
+        context: context,
+        barrierColor:
+            Colors.transparent, // Keeps the background dark but transparent
+        builder: (context) => const CharacterPage(),
       );
     } else if (label == "ร้านค้า") {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const ShopPage()),
       );
-      
     } else if (label == "กิจกรรม") {
-        Navigator.push(
+      Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const Event()),
-        );
-    } else if (label == "แข่งขัน") {
-        Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const Rank()),
-        );
+      );
     } else if (label == "คลังของ") {
-        Navigator.push(
+      Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const WarehousePage()),
-        );
+      );
     } else {
       print("Pressed: $label");
-      
     }
-    
-    
   }
 
   // --- Widget สไตล์ Fantasy: ปุ่มแถบบน (Shop) ---
@@ -117,7 +110,7 @@ class _LearningGameHomeState extends State<LearningGameHome>
               style: TextStyle(
                 color: const Color(0xFFDCEDC8),
                 fontWeight: FontWeight.w900,
-                fontSize: 18,
+                fontSize: 12,
                 fontFamily: 'Comic Sans MS',
                 shadows: [
                   Shadow(
@@ -272,11 +265,11 @@ class _LearningGameHomeState extends State<LearningGameHome>
         children: [
           // 1. Background
           Container(
-            decoration: const BoxDecoration(           
+            decoration: const BoxDecoration(
               image: DecorationImage(
-                        image: AssetImage("assets/images/bg_fantasy.png"),
-                        fit: BoxFit.cover,
-                      ),
+                image: AssetImage("assets/images/bg_fantasy.png"),
+                fit: BoxFit.cover,
+              ),
             ),
           ),
 
@@ -362,18 +355,17 @@ class _LearningGameHomeState extends State<LearningGameHome>
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  
                   child: Row(
                     children: [
                       _buildTopTabButton("ร้านค้า", Icons.storefront, true),
-                      const SizedBox(width: 6),
-                      _buildTopTabButton("คลังของ", Icons.backpack, false),
+                      const SizedBox(width: 10),
+                      _buildTopTabButton("คลังของ", Icons.backpack, true),
                       const Spacer(),
                       // ✅ Level Badge
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 4),
-                        margin: const EdgeInsets.only(right: 6),
+                            horizontal: 3, vertical: 2),
+                        margin: const EdgeInsets.only(right: 3),
                         decoration: BoxDecoration(
                             color: Colors.redAccent.withOpacity(0.8),
                             borderRadius: BorderRadius.circular(12),
@@ -381,9 +373,7 @@ class _LearningGameHomeState extends State<LearningGameHome>
                                 color: Colors.red.shade800, width: 1.5)),
                         child: Row(
                           children: [
-                            const Icon(Icons.military_tech,
-                                color: Colors.white, size: 14),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: 2),
                             Text("Lv.${GameData.playerLevel}",
                                 style: const TextStyle(
                                     color: Colors.white,
@@ -395,7 +385,7 @@ class _LearningGameHomeState extends State<LearningGameHome>
                       // ✅ เงิน — ใช้ค่าจริงจาก GameData
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                            horizontal: 4, vertical: 2),
                         decoration: BoxDecoration(
                             color: const Color(0xFF5D4037).withOpacity(0.7),
                             borderRadius: BorderRadius.circular(12),
@@ -404,13 +394,13 @@ class _LearningGameHomeState extends State<LearningGameHome>
                         child: Row(
                           children: [
                             const Icon(Icons.monetization_on,
-                                color: Color(0xFFFFEB3B), size: 16),
-                            const SizedBox(width: 4),
+                                color: Color(0xFFFFEB3B), size: 14),
+                            const SizedBox(width: 2),
                             Text("${GameData.playerGold}",
                                 style: const TextStyle(
                                     color: Color(0xFFDCEDC8),
                                     fontWeight: FontWeight.w900,
-                                    fontSize:   14)),
+                                    fontSize: 14)),
                           ],
                         ),
                       )
@@ -442,82 +432,20 @@ class _LearningGameHomeState extends State<LearningGameHome>
                     children: [
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: Text(
-                          "การผจญภัยแห่งการเรียนรู้",
-                          style: TextStyle(
-                            color: const Color(0xFFFFEB3B),
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            fontFamily: 'Comic Sans MS',
-                            shadows: [
-                              Shadow(
-                                  color: const Color(0xFF3E2723),
-                                  blurRadius: 4,
-                                  offset: const Offset(2, 2))
-                            ],
-                          ),
-                        ),
+                        
                       ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          _buildGameModeCard("แบบทดสอบ", "โหมดเนื้อเรื่อง",
-                              Icons.menu_book, const Color(0xFFC5E1A5)),
-                          _buildGameModeCard("แข่งขัน", "จัดอันดับ",
-                              Icons.emoji_events, const Color(0xFFFFB74D)),
-                          _buildGameModeCard(
-                              "กิจกรรม",
-                              "พิเศษ!",
-                              Icons.local_fire_department,
-                              const Color(0xFFEF5350)),
+                          _buildGameModeCard("แบบทดสอบ", "ฝึกทำโจทย์", Icons.menu_book, const Color(0xFFC5E1A5)),
+                          
+                          _buildGameModeCard("ภารกิจ","คำใบ้!", Icons.local_fire_department, const Color(0xFFEF5350)),
                         ],
                       ),
                       const SizedBox(height: 24),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          // ✅ ปุ่ม Friends ใหญ่ขึ้น + มีข้อความ
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const Friends()),
-                              ).then((_) => setState(() {}));
-                            },
-                          child: Container(
-                            height: 70,
-                            width: 70,
-                            margin: const EdgeInsets.only(bottom: 0),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFA1887F), Color(0xFF795548)],
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                              ),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                  color: const Color(0xFF5D4037), width: 3),
-                              boxShadow: [
-                                BoxShadow(
-                                    color: Colors.black.withOpacity(0.5),
-                                    offset: const Offset(0, 6),
-                                    blurRadius: 2)
-                              ],
-                            ),
-                            child: const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.group,
-                                    color: Color(0xFFDCEDC8), size: 30),
-                                SizedBox(height: 2),
-                                Text("เพื่อน",
-                                    style: TextStyle(
-                                        color: Color(0xFFDCEDC8),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w900)),
-                              ],
-                            ),
-                          ),),
                           const SizedBox(width: 12),
                           Expanded(child: _buildPlayButton()),
                         ],

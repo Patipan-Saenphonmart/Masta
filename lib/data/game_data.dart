@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'models/quest.dart'; // Import Quest
-import 'models/book.dart'; // Import Book
+import '../models/quest.dart'; // Import Quest
+import '../models/book.dart'; // Import Book
 
 class GameData {
   static int playerGold = 99999;
@@ -19,6 +19,9 @@ class GameData {
   static List<String> equippedItems = []; 
   // ✅ เพิ่ม: สกิลที่ติดตั้งอยู่ (จำกัดจำนวนได้ในอนาคต)
   static List<String> equippedSkills = []; 
+
+  // ✅ ระบบแผนที่ (Fog of War)
+  static Set<String> exploredChunks = {};
 
   // ✅ ระบบเควสต์
   static List<Quest> activeQuests = [
@@ -308,6 +311,8 @@ class GameData {
       'books': books.map((b) => b.toJson()).toList(),
       'questLogEntries': questLogEntries,
       'isBossDoorUnlocked': isBossDoorUnlocked,
+      // ✅ บันทึกข้อมูลแผนที่
+      'exploredChunks': exploredChunks.toList(),
     };
   }
 
@@ -353,6 +358,13 @@ class GameData {
       questLogEntries = List<Map<String, dynamic>>.from(json['questLogEntries']);
     }
     isBossDoorUnlocked = json['isBossDoorUnlocked'] ?? false;
+    
+    // ✅ โหลดข้อมูลแผนที่
+    if (json['exploredChunks'] != null) {
+      exploredChunks = Set<String>.from(json['exploredChunks']);
+    } else {
+      exploredChunks.clear();
+    }
   }
 
   // ✅ รีเซ็ตข้อมูลทั้งหมดกลับเป็นค่าเริ่มต้นเวลาเริ่มเกมใหม่
@@ -385,10 +397,10 @@ class GameData {
     ];
     questUpdateNotifier.value++;
     
-    // ✅ รีเซ็ตข้อมูลหนังสือ
     books.clear();
     questLogEntries.clear();
     isBossDoorUnlocked = false;
+    exploredChunks.clear(); // ✅ ล้างแผนที่เมื่อเริ่มใหม่
     
     // ✅ เพิ่มหนังสือบันทึกโจทย์เสมอ
     addBook(Book.questLog());

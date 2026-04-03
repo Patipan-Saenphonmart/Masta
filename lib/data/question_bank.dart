@@ -1,5 +1,5 @@
 import 'dart:math';
-import '../supabase_config.dart';
+import '../config/supabase_config.dart';
 
 /// คลังคำถาม Hybrid: ดึงจาก Supabase ก่อน ถ้าไม่ได้ใช้ local fallback
 class QuestionBank {

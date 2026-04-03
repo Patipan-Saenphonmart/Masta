@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../game_data.dart';
+import '../../data/game_data.dart';
 import '../rabbit_game.dart';
 
 class QuestOverlay extends StatelessWidget {

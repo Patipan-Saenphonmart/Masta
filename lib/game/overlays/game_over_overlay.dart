@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../rabbit_game.dart';
+import '../../utils/audio_manager.dart'; // ✅ Import AudioManager
 
 class GameOverOverlay extends StatelessWidget {
   final RabbitGame game;
@@ -8,6 +9,8 @@ class GameOverOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ หยุด BGM เมื่อ Game Over
+    AudioManager().stopBgm();
     return Container(
       color: Colors.black87,
       child: Center(
@@ -43,6 +46,7 @@ class GameOverOverlay extends StatelessWidget {
                 ),
               ),
               onPressed: () {
+                AudioManager().playSfx(AudioManager.sfxUiClick); // ✅ SFX
                 game.resetGame();
               },
               child: const Text(
@@ -58,6 +62,7 @@ class GameOverOverlay extends StatelessWidget {
             const SizedBox(height: 16),
             TextButton(
               onPressed: () {
+                AudioManager().playSfx(AudioManager.sfxUiClick); // ✅ SFX
                 Navigator.of(context).pop(); // กลับหน้าจอ Character/Home
               },
               child: const Text(
