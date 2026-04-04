@@ -201,6 +201,9 @@ class _BattleOverlayState extends State<BattleOverlay>
     if (currentQuestion != null) {
       GameData.recordQuestion(
           currentQuestion!, widget.enemy.strongSubject, correct);
+      if (correct) {
+        GameData.recordQuestLogEntry(currentQuestion!, choice);
+      }
     }
     _showPhase1Result(correct);
   }

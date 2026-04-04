@@ -1069,6 +1069,18 @@ class RabbitGame extends FlameGame
         } else {
           showDialog("คุณมีสกิลนี้อยู่แล้ว!");
         }
+      } else if (itemName.startsWith("Gold")) {
+        // Extract random gold
+        final regex = RegExp(r'\d+');
+        final match = regex.firstMatch(itemName);
+        if (match != null) {
+          int amount = int.tryParse(match.group(0) ?? '0') ?? 0;
+          GameData.playerGold += amount;
+          showDialog("ได้รับเงิน: $amount G !");
+        } else {
+          GameData.inventory.add(itemName);
+          showDialog("เก็บได้: $itemName !");
+        }
       } else {
         // ไอเทมทั่วไป
         GameData.inventory.add(itemName);
@@ -1383,10 +1395,11 @@ class RabbitGame extends FlameGame
     final rand = Random().nextDouble();
     // 70% chance spawn gold, 20% potion, 10% rare book
     if (rand < 0.7) {
+      int randomGold = 10 + Random().nextInt(41); // 10 to 50
       world.add(WorldItem(
         position: position + Vector2(0, 10),
         size: Vector2(16, 16),
-        name: 'Gold (10-50)',
+        name: 'Gold ($randomGold)',
       ));
     } else if (rand < 0.9) {
       world.add(WorldItem(
@@ -1756,7 +1769,7 @@ class WorldItem extends SpriteAnimationComponent with HasGameRef<RabbitGame> {
       spriteFile = 'book_questions.png';
       size = Vector2(32, 32);
     } else if (name.toLowerCase().contains('potion') || name.contains('ยา')) {
-      size = Vector2(16, 16);
+      size = Vector2(24, 24);
       for (final file in const <String>['hp.png', 'h.png', 'potion.png']) {
         try {
           final s = await gameRef.loadSprite(file);

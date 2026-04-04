@@ -589,11 +589,13 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
                 Icon(icon, size: 20, color: iconColor),
                 const SizedBox(height: 8),
                 if (isBook)
-                  const Text("หนังสือ",
+                  Text(name,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
                           fontWeight: FontWeight.bold, 
-                          fontSize: 11,
+                          fontSize: 10,
                           color: Colors.brown))
                 else if (isSkill)
                   const Text("สกิล",
@@ -957,24 +959,73 @@ class _BookPopupOverlayState extends State<_BookPopupOverlay> {
   }
 
   Widget _buildQuestLogContent() {
+    final entries = GameData.questLogEntries;
+    
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            const Color(0xFFE8F5E8).withOpacity(0.95),
-            const Color(0xFFF0F8FF).withOpacity(0.95),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF4CAF50), width: 4),
-        boxShadow: const [
-          BoxShadow(color: Colors.black54, blurRadius: 15, offset: Offset(0, 8)),
-        ],
+        color: const Color(0xFFF5F5DC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF8D6E63), width: 3),
+        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8)],
       ),
-      child: const Center(child: Text("Quest Log UI")), // แก้ให้แสดง Quest Log ตามความเหมาะสม
+      child: entries.isEmpty 
+        ? const Center(
+            child: Text("ยังไม่มีบันทึกโจทย์", style: TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold))
+          )
+        : ListView.builder(
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              return Card(
+                color: Colors.white,
+                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(color: Colors.brown.shade200, width: 1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: ExpansionTile(
+                  iconColor: Colors.brown,
+                  collapsedIconColor: Colors.brown,
+                  title: Text(
+                    "📝 ${entry['title']} - วิชา${entry['subject']}",
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF5D4037)),
+                  ),
+                  subtitle: Text(
+                    entry['question'] ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+                  ),
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12.0),
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.brown.shade50,
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(8),
+                          bottomRight: Radius.circular(8),
+                        )
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text("📌 โจทย์:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.brown)),
+                          const SizedBox(height: 4),
+                          Text("${entry['question']}", style: const TextStyle(fontSize: 14)),
+                          const SizedBox(height: 12),
+                          const Text("💡 คำตอบที่ถูกต้อง:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                          const SizedBox(height: 4),
+                          Text("${entry['answer']}", style: const TextStyle(fontSize: 14)),
+                        ],
+                      ),
+                    )
+                  ],
+                ),
+              );
+            },
+          ),
     );
   }
 }

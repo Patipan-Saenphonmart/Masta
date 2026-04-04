@@ -154,12 +154,17 @@ class GameData {
   }
 
   // ✅ บันทึกโจทย์ลงหนังสือบันทึกโจทย์
-  static void recordQuestLogEntry(Map<String, dynamic> question, String answer) {
+  static void recordQuestLogEntry(Map<String, dynamic> question, String answer, {String? subject}) {
+    String finalSubject = subject ?? question['subject'] ?? 'ไม่ระบุ';
+    String finalTitle = question['title'] ?? question['id'] ?? 'โจทย์ปัญหา';
+    String finalQuestionText = question['question_text'] ?? question['question'] ?? '';
+
     questLogEntries.add({
-      'id': DateTime.now().millisecondsSinceEpoch.toString(),
-      'question': question['question'],
+      'id': question['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      'title': finalTitle,
+      'question': finalQuestionText,
       'answer': answer,
-      'subject': question['subject'] ?? 'ไม่ระบุ',
+      'subject': finalSubject,
       'timestamp': DateTime.now().toIso8601String(),
     });
     

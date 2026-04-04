@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../rabbit_game.dart';
 import '../../data/game_data.dart';
+import '../../models/book.dart';
 import '../components/enemy.dart';
 import 'package:flame/components.dart' as flame;
 import '../../utils/audio_manager.dart'; // ✅ Import AudioManager
@@ -443,7 +444,7 @@ class _CutsceneOverlayState extends State<CutsceneOverlay>
         final book = WorldItem(
           position: bookPos,
           size: flame.Vector2(20, 20),
-          name: 'บันทึกแห่งจอมปราชญ์',
+          name: 'หนังสือจอมปราชญ์',
         )..priority = bookPos.y.toInt();
         widget.game.world.add(book);
         debugPrint('🎭 Cutscene: Book spawned at $bookPos');
@@ -451,11 +452,17 @@ class _CutsceneOverlayState extends State<CutsceneOverlay>
 
       case 'pickUpBook':
         // เก็บหนังสือเข้า inventory
-        GameData.inventory.add('บันทึกแห่งจอมปราชญ์');
+        final sageBook = Book.regular(
+          id: 'sage_book',
+          title: 'หนังสือจอมปราชญ์',
+          description: 'บันทึกแห่งจอมปราชญ์',
+          content: 'แด่ดวงจิตผู้มองเห็นความจริง... โลกนี้กำลังป่วยหนัก\nจงใช้ความรู้ของเจ้าแก้ไขมิตินี้',
+        );
+        GameData.addBook(sageBook);
+        
         // ลบ WorldItem ออกจาก world
-        for (final item
-            in widget.game.world.children.whereType<WorldItem>().toList()) {
-          if (item.name == 'บันทึกแห่งจอมปราชญ์') {
+        for (final item in widget.game.world.children.whereType<WorldItem>().toList()) {
+          if (item.name == 'บันทึกแห่งจอมปราชญ์' || item.name == 'หนังสือจอมปราชญ์') {
             item.removeFromParent();
           }
         }
@@ -474,8 +481,9 @@ class _CutsceneOverlayState extends State<CutsceneOverlay>
           strongSubject: 'ฟิสิกส์',
           weakSubject: 'เคมี',
         )
-          ..size = flame.Vector2(32, 32)
+          ..size = flame.Vector2(48, 48)
           ..priority = enemyPos.y.toInt();
+        tutorialEnemy.faceDirection(-1);
         widget.game.world.add(tutorialEnemy);
         widget.game.enemy = tutorialEnemy;
 
