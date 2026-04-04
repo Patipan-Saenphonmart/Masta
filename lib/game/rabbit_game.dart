@@ -1668,10 +1668,6 @@ class Npc extends SpriteAnimationGroupComponent<NpcState> with HasGameRef<Rabbit
     current = state;
   }
 
-  @override
-  void render(Canvas canvas) {
-    super.render(canvas);
-  }
 }
 
 class Portal extends PositionComponent {

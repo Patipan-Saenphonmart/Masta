@@ -5,7 +5,7 @@ import '../../utils/audio_manager.dart';
 
 class GameEndingOverlay extends StatefulWidget {
   final RabbitGame game;
-  const GameEndingOverlay({Key? key, required this.game}) : super(key: key);
+  const GameEndingOverlay({super.key, required this.game});
 
   @override
   State<GameEndingOverlay> createState() => _GameEndingOverlayState();

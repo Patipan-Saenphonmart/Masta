@@ -7,7 +7,7 @@ import '../components/tree.dart';
 
 class MiniMapOverlay extends StatelessWidget {
   final RabbitGame game;
-  const MiniMapOverlay({Key? key, required this.game}) : super(key: key);
+  const MiniMapOverlay({super.key, required this.game});
 
   @override
   Widget build(BuildContext context) {

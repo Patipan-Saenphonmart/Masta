@@ -26,23 +26,21 @@ class _LearningGameHomeState extends State<LearningGameHome>
   @override
   void initState() {
     super.initState();
-    _loadSpriteImage(); // ✅ เรียกฟังก์ชันโหลดภาพ
     AudioManager().playBgm(AudioManager.bgmMenuPages); // ✅ เล่น BGM หน้า Home
+    _loadSpriteImage(); // ✅ เรียกฟังก์ชันโหลดภาพ
+     
 
     // ✅ Setup Animation: สำหรับเล่น sprite sheet วนลูป
-    // สมมติว่ามี 4 เฟรม, เฟรมละ 150ms = 600ms (ปรับแก้ตามจำนวนเฟรมจริงของภาพ)
     _spriteController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1650),
+      duration: const Duration(milliseconds: 1650), // เฟรมละ 150ms ตอนนี้ใช้ 11 เฟรม
     )..repeat(); // เล่นวนลูปไปเรื่อยๆ
   }
 
   // ✅ ฟังก์ชันสำหรับโหลดภาพ Sprite Sheet
   Future<void> _loadSpriteImage() async {
-    final ByteData data =
-        await rootBundle.load('assets/images/rabbit_idle.png');
-    final ui.Codec codec =
-        await ui.instantiateImageCodec(data.buffer.asUint8List());
+    final ByteData data = await rootBundle.load('assets/images/rabbit_idle.png');
+    final ui.Codec codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
     final ui.FrameInfo fi = await codec.getNextFrame();
     setState(() {
       _spriteImage = fi.image;
@@ -68,7 +66,7 @@ class _LearningGameHomeState extends State<LearningGameHome>
       showDialog(
         context: context,
         barrierColor:
-            Colors.transparent, // Keeps the background dark but transparent
+            Colors.transparent, // พื้นหลังโปร่งใส
         builder: (context) => const CharacterPage(),
       );
     } else if (label == "ร้านค้า") {
@@ -76,7 +74,7 @@ class _LearningGameHomeState extends State<LearningGameHome>
         context,
         MaterialPageRoute(builder: (context) => const ShopPage()),
       );
-    } else if (label == "กิจกรรม") {
+    } else if (label == "ภารกิจ") {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const Event()),
@@ -91,7 +89,7 @@ class _LearningGameHomeState extends State<LearningGameHome>
     }
   }
 
-  // --- Widget สไตล์ Fantasy: ปุ่มแถบบน (Shop) ---
+  // --- Widget สไตล์ Fantasy: ปุ่มแถบบน (Shop), (inventory), (level), (coin)  ---
   Widget _buildTopTabButton(String label, IconData icon, bool isSelected) {
     return InkWell(
       onTap: () => onButtonPressed(label),
