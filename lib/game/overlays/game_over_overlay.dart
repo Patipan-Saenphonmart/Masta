@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../rabbit_game.dart';
+import '../main_game.dart';
 import '../../utils/audio_manager.dart'; // ✅ Import AudioManager
 
 class GameOverOverlay extends StatelessWidget {

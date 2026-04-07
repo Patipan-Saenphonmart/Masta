@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../rabbit_game.dart';
+import '../main_game.dart';
 import '../../page/home_page.dart';
 import '../../utils/audio_manager.dart';
 

@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'package:flutter/material.dart';
-import '../rabbit_game.dart';
+import '../main_game.dart';
 
 enum EnemyState { idle, walk, run, hit, dead }
 

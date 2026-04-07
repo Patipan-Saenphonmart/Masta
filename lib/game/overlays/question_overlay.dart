@@ -2,7 +2,7 @@ import 'dart:math';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../config/supabase_config.dart';
-import '../rabbit_game.dart';
+import '../main_game.dart';
 
 class QuestionOverlay extends StatefulWidget {
   final RabbitGame game;

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../rabbit_game.dart';
+import '../main_game.dart';
 import '../../data/game_data.dart';
 
 class SkillOverlay extends StatefulWidget {

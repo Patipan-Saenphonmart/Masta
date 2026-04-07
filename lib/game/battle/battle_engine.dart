@@ -5,6 +5,7 @@ import 'battle_models.dart';
 /// Battle Engine: จัดการ state และ logic ของการต่อสู้แบบ Quiz Battle
 class BattleEngine {
   final Enemy enemy;
+  bool isShieldActive = true;
 
   // --- Battle State ---
   BattleTurn currentTurn = BattleTurn.enemyAsks;
@@ -31,7 +32,8 @@ class BattleEngine {
     GameData.recordAnswer(subject, correct);
 
     if (correct) {
-      // ตอบถูก → โจมตีศัตรู
+      // ตอบถูก → โจมตีศัตรูแต่ไม่มี damage
+      isShieldActive = false;
       final multiplier = _timeMultiplier(timeUsed);
       final isCounter = timeUsed <= 5.0;
       final combo = GameData.comboMultiplier;
@@ -48,9 +50,9 @@ class BattleEngine {
       }
 
       return BattleResult(
-        damage: damage,
-        multiplier: totalMultiplier,
-        isCounter: isCounter,
+        damage: 0,
+        multiplier: 1.0,
+        isCounter: false,
         comboCount: GameData.comboCount,
         timeUsed: timeUsed,
         correct: true,
@@ -151,5 +153,35 @@ class BattleEngine {
     final gold = 20 + (turnCount * 5) + (GameData.comboCount * 3);
     final exp = 15 + (turnCount * 3);
     return {'gold': gold, 'exp': exp};
+  }
+
+  // class การโจมตีทางกายภาพ
+  Map<String, dynamic> processPhysicalAttack() {
+    if (isShieldActive) {
+      // Shield is up: Attack fails!
+      return {
+        'success': false,
+        'damage': 0,
+        'message': 'The shield is too thick! Scan the equation first!'
+      };
+    } else {
+      // Shield is broken: Deal massive damage!
+      int damage = baseDamage * 2; // Double damage for breaking the shield!
+      enemy.takeDamage(damage);
+      
+      if (enemy.hp <= 0) {
+        battleEnded = true;
+        winner = 'player';
+      }
+      
+      // ✅ Optional: Reset the shield if you want them to scan again for the next hit
+      // isShieldActive = true; 
+
+      return {
+        'success': true,
+        'damage': damage,
+        'message': 'Critical Hit! You dealt $damage damage!'
+      };
+    }
   }
 }

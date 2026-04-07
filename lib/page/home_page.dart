@@ -9,6 +9,7 @@ import 'event_page.dart';
 import 'warehouse_page.dart';
 import '../data/game_data.dart'; // Import GameData เพื่อใช้ค่าจริง
 import '../utils/audio_manager.dart'; // ✅ Import AudioManager
+import '../title_screen.dart';
 
 class LearningGameHome extends StatefulWidget {
   const LearningGameHome({super.key});
@@ -28,19 +29,22 @@ class _LearningGameHomeState extends State<LearningGameHome>
     super.initState();
     AudioManager().playBgm(AudioManager.bgmMenuPages); // ✅ เล่น BGM หน้า Home
     _loadSpriteImage(); // ✅ เรียกฟังก์ชันโหลดภาพ
-     
 
     // ✅ Setup Animation: สำหรับเล่น sprite sheet วนลูป
     _spriteController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1650), // เฟรมละ 150ms ตอนนี้ใช้ 11 เฟรม
+      duration:
+          const Duration(milliseconds: 1650), // เฟรมละ 150ms ตอนนี้ใช้ 11 เฟรม
     )..repeat(); // เล่นวนลูปไปเรื่อยๆ
   }
 
   // ✅ ฟังก์ชันสำหรับโหลดภาพ Sprite Sheet
   Future<void> _loadSpriteImage() async {
-    final ByteData data = await rootBundle.load('assets/images/rabbit_idle.png');
-    final ui.Codec codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
+    // ✅ ใช้ GameData.playerIdleAsset แทนการ hardcode ชื่อไฟล์
+    final ByteData data =
+        await rootBundle.load(GameData.playerIdleAsset);
+    final ui.Codec codec =
+        await ui.instantiateImageCodec(data.buffer.asUint8List());
     final ui.FrameInfo fi = await codec.getNextFrame();
     setState(() {
       _spriteImage = fi.image;
@@ -65,8 +69,7 @@ class _LearningGameHomeState extends State<LearningGameHome>
     } else if (label == "ออกผจญภัย") {
       showDialog(
         context: context,
-        barrierColor:
-            Colors.transparent, // พื้นหลังโปร่งใส
+        barrierColor: Colors.transparent, // พื้นหลังโปร่งใส
         builder: (context) => const CharacterPage(),
       );
     } else if (label == "ร้านค้า") {
@@ -84,6 +87,11 @@ class _LearningGameHomeState extends State<LearningGameHome>
         context,
         MaterialPageRoute(builder: (context) => const WarehousePage()),
       );
+    } else if (label == "") {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const TitleScreen()),
+      );
     } else {
       print("Pressed: $label");
     }
@@ -96,8 +104,11 @@ class _LearningGameHomeState extends State<LearningGameHome>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF795548) : Colors.transparent,
+          color: isSelected
+              ? const ui.Color.fromARGB(255, 139, 96, 80)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFF795548), width: 3)
         ),
         child: Row(
           children: [
@@ -313,11 +324,11 @@ class _LearningGameHomeState extends State<LearningGameHome>
                             ),
                           ),
 
-                          // ✅ Animation: ใช้ CustomPaint กับ SpritePainter
+                          // ✅ Animation: ใช้ CustomPaint กับ SpritePainter (จาก GameData)
                           if (_isImageLoaded)
                             SizedBox(
-                              width: 32 * 8.0, // กว้าง 32 * scale 8
-                              height: 32 * 8.0, // สูง 32 * scale 8
+                              width: GameData.spriteFrameSize * 4.0, // scale 4x
+                              height: GameData.spriteFrameSize * 4.0,
                               child: AnimatedBuilder(
                                 animation: _spriteController,
                                 builder: (context, child) {
@@ -325,8 +336,8 @@ class _LearningGameHomeState extends State<LearningGameHome>
                                     painter: _SpritePainter(
                                       image: _spriteImage!,
                                       animationValue: _spriteController.value,
-                                      frameWidth: 32,
-                                      frameHeight: 32,
+                                      frameWidth: GameData.spriteFrameSize.toInt(),
+                                      frameHeight: GameData.spriteFrameSize.toInt(),
                                     ),
                                   );
                                 },
@@ -405,7 +416,14 @@ class _LearningGameHomeState extends State<LearningGameHome>
                     ],
                   ),
                 ),
-
+                const SizedBox(height: 12),
+                // ✅ ปุ่มกลับหน้าแรก
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Row(children: [
+                    _buildTopTabButton("", Icons.arrow_back, true)
+                  ]),
+                ),
                 const Spacer(),
 
                 // BOTTOM PANEL
@@ -430,14 +448,17 @@ class _LearningGameHomeState extends State<LearningGameHome>
                     children: [
                       Align(
                         alignment: Alignment.centerLeft,
-                        
                       ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          _buildGameModeCard("แบบทดสอบ", "ฝึกทำโจทย์", Icons.menu_book, const Color(0xFFC5E1A5)),
-                          
-                          _buildGameModeCard("ภารกิจ","คำใบ้!", Icons.local_fire_department, const Color(0xFFEF5350)),
+                          _buildGameModeCard("แบบทดสอบ", "ฝึกทำโจทย์",
+                              Icons.menu_book, const Color(0xFFC5E1A5)),
+                          _buildGameModeCard(
+                              "ภารกิจ",
+                              "คำใบ้!",
+                              Icons.local_fire_department,
+                              const Color(0xFFEF5350)),
                         ],
                       ),
                       const SizedBox(height: 24),
@@ -484,14 +505,16 @@ class _SpritePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // สมมติว่าเป็น sprite sheet แถวเดียว
+    // ✅ ใช้ row 0 (idle down) จาก sprite sheet 4 แถว
     final int totalFrames = image.width ~/ frameWidth;
     // คำนวณเฟรมปัจจุบันจาก animationValue (0.0 -> 1.0)
+    // จำกัดจำนวนเฟรมตาม GameData.idleFrameCount
+    final int maxFrames = totalFrames.clamp(1, GameData.idleFrameCount);
     final int currentFrame =
-        (animationValue * totalFrames).floor() % totalFrames;
+        (animationValue * maxFrames).floor() % maxFrames;
 
     final double srcX = currentFrame * frameWidth.toDouble();
-    final double srcY = 0.0; // แถวแรก
+    final double srcY = 0.0; // row 0 = idle down
 
     // พื้นที่ที่จะตัดมาจาก sprite sheet
     final Rect srcRect = Rect.fromLTWH(

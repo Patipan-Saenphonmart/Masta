@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/game_data.dart';
-import '../rabbit_game.dart';
+import '../main_game.dart';
 import '../../models/book.dart'; // อย่าลืม import Book
 
 class InventoryOverlay extends StatefulWidget {
@@ -14,7 +14,6 @@ class InventoryOverlay extends StatefulWidget {
 class _InventoryOverlayState extends State<InventoryOverlay> {
   int _selectedTab = 0; // 0 = Items, 1 = Skills
 
-  bool get _isArmorEquipped => GameData.isEquipped("เกราะวิเศษ (Magic Armor)");
   bool get _isSwordEquipped => GameData.isEquipped("ดาบสายฟ้า (Thunder Sword)");
 
   void _toggleEquipItem(String itemName) {
@@ -338,15 +337,13 @@ class _InventoryOverlayState extends State<InventoryOverlay> {
                     shape: BoxShape.circle,
                     border: Border.all(color: const Color(0xFFFFEB3B), width: 4),
                     image: DecorationImage(
-                      image: AssetImage(_isArmorEquipped
-                          ? 'assets/images/rabbit_idle_armor.png'
-                          : 'assets/images/rabbit_idle.png'),
+                      image: AssetImage(GameData.playerIdleAsset),
                       fit: BoxFit.cover,
                       alignment: Alignment.topCenter,
                     )),
               ),
               const SizedBox(height: 12),
-              Text(_isArmorEquipped ? "Armored Hero" : "Hero Rabbit",
+              Text(GameData.playerName,
                   style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,

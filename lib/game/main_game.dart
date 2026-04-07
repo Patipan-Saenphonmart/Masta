@@ -5,9 +5,8 @@ import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flame_tiled/flame_tiled.dart' hide Text;
 import 'package:flame/collisions.dart';
-
 import '../data/game_data.dart';
-import 'components/rabbit.dart';
+import 'components/player.dart';
 import 'components/enemy.dart';
 import 'components/tree.dart';
 import 'utils/astar.dart';
@@ -31,6 +30,7 @@ import '../page/home_page.dart'; // ✅ Import Home Page
 class RabbitGamePage extends StatelessWidget {
   final bool showIntroCutscene; // ✅ เพิ่ม parameter สำหรับ cutscene
   const RabbitGamePage({super.key, this.showIntroCutscene = false});
+
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +350,8 @@ class RabbitGamePage extends StatelessWidget {
                             AudioManager().isMuted
                                 ? 'ปิดเสียงแล้ว 🔇'
                                 : 'เปิดเสียงแล้ว 🔊',
-                            style: const TextStyle(fontWeight: FontWeight.bold))));
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold))));
                   }),
               const SizedBox(height: 12),
 
@@ -365,14 +366,15 @@ class RabbitGamePage extends StatelessWidget {
                     await SaveManager.saveGame(); // ✅ Auto-save ก่อนออก
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('บันทึกข้อมูลอัตโนมัติเรียบร้อยแล้ว! 💾',
+                          content: Text(
+                              'บันทึกข้อมูลอัตโนมัติเรียบร้อยแล้ว! 💾',
                               style: TextStyle(fontWeight: FontWeight.bold))));
                       Navigator.pushAndRemoveUntil(
                         context,
                         PageRouteBuilder(
-                          pageBuilder:
-                              (context, animation, secondaryAnimation) =>
-                                  const LearningGameHome(), // ✅ ไป Home แทน TitleScreen
+                          pageBuilder: (context, animation,
+                                  secondaryAnimation) =>
+                              const LearningGameHome(), // ✅ ไป Home แทน TitleScreen
                           transitionsBuilder:
                               (context, animation, secondaryAnimation, child) {
                             return FadeTransition(
@@ -520,7 +522,8 @@ class RabbitGame extends FlameGame
 
   // --- Walk Step SFX ---
   double _walkStepTimer = 0.0;
-  static const double _walkStepInterval = 0.35; // เล่นเสียงก้าวเดินทุก 0.35 วินาที
+  static const double _walkStepInterval =
+      0.35; // เล่นเสียงก้าวเดินทุก 0.35 วินาที
   bool _isEnemyChasingPlayer = false;
 
   // --- Auto save player position ---
@@ -529,7 +532,7 @@ class RabbitGame extends FlameGame
 
   // --- Respawn & Loot ---
   final List<_RespawnData> _respawnWaitList = [];
-  
+
   // --- Transition ---
   bool _isTransitioning = false;
   double _transitionAlpha = 0.0;
@@ -545,7 +548,8 @@ class RabbitGame extends FlameGame
     final savedPos = await SaveManager.loadPlayerPosition();
     final spawnPos = savedPos != null
         ? Vector2(savedPos['x']!, savedPos['y']!)
-        : Vector2(600, 540);
+        : Vector2(3678,
+            2464); // ********************** จุดกระต่ายเกิดใหม่ตั้งแต่เริ่มเกมครั้งแรก **********************
 
     world = World();
     add(world);
@@ -560,7 +564,6 @@ class RabbitGame extends FlameGame
 
     rabbit = Rabbit()
       ..priority = 100
-      ..size = Vector2(50, 50)
       ..position = spawnPos.clone();
     world.add(rabbit);
     cameraComponent.follow(rabbit);
@@ -659,7 +662,7 @@ class RabbitGame extends FlameGame
     const double chunkSize = 150.0; // ขนาดพื้นที่ 1 ช่องที่จะเปิด
     int chunkX = (rabbit.position.x / chunkSize).floor();
     int chunkY = (rabbit.position.y / chunkSize).floor();
-    
+
     bool newlyDiscovered = false;
     // เปิดรอบตัวกระต่าย (ระยะการมองเห็น: รัศมี 1 chunk)
     for (int dx = -1; dx <= 1; dx++) {
@@ -671,7 +674,7 @@ class RabbitGame extends FlameGame
         }
       }
     }
-    
+
     // เซฟการค้นพบใหม่
     if (newlyDiscovered) {
       SaveManager.saveGame();
@@ -695,12 +698,27 @@ class RabbitGame extends FlameGame
     }
   }
 
+  // ✅ อัปเดตการเคลื่อนที่ของกระต่าย (4 ทิศทาง)
   void _updatePlayer(double dt) {
     if (rabbit.isHitPlaying) return;
 
     if (joystickDirection.length > 0.01) {
-      rabbit.setState(RabbitState.run);
-      rabbit.faceDirection(joystickDirection.x);
+      // ✅ กำหนดทิศทางแอนิเมชัน โดยเช็คแกนที่มีค่ามากกว่า
+      if (joystickDirection.x.abs() >= joystickDirection.y.abs()) {
+        // แนวนอนเด่นกว่า → ซ้าย/ขวา
+        if (joystickDirection.x > 0) {
+          rabbit.setState(RabbitState.runRight);
+        } else {
+          rabbit.setState(RabbitState.runLeft);
+        }
+      } else {
+        // แนวตั้งเด่นกว่า → ขึ้น/ลง
+        if (joystickDirection.y > 0) {
+          rabbit.setState(RabbitState.runDown);
+        } else {
+          rabbit.setState(RabbitState.runUp);
+        }
+      }
 
       lastDirection = joystickDirection.normalized();
 
@@ -716,8 +734,6 @@ class RabbitGame extends FlameGame
 
       final velocity = joystickDirection.normalized() * currentSpeed * dt;
       // ✅ ใช้อิงจากขนาดและตำแหน่ง Hitbox ใหม่ (เฉพาะเท้า)
-      // ตัวละคร 50x50, Center=25x25, Hitbox อยู่วายจากด้านบน 36 มีความสูง 14
-      // แปลว่าจุดศูนย์กลางเท้าจะอยู่ขยับลงมาจากกึ่งกลางตัวประมาณ 18 พิกเซล
       final double hitW = 30.0;
       final double hitH = 14.0;
       final double offsetY = 18.0;
@@ -750,7 +766,20 @@ class RabbitGame extends FlameGame
       }
       if (!hitWallY) rabbit.position.y = nextY;
     } else {
-      rabbit.setState(RabbitState.idle);
+      // ✅ Idle: เปลี่ยนเป็น idle ตามทิศทางสุดท้าย
+      if (lastDirection.x.abs() >= lastDirection.y.abs()) {
+        if (lastDirection.x > 0) {
+          rabbit.setState(RabbitState.idleRight);
+        } else {
+          rabbit.setState(RabbitState.idleLeft);
+        }
+      } else {
+        if (lastDirection.y > 0) {
+          rabbit.setState(RabbitState.idleDown);
+        } else {
+          rabbit.setState(RabbitState.idleUp);
+        }
+      }
       _walkStepTimer = 0.0; // ✅ Reset walk timer when idle
     }
   }
@@ -1001,7 +1030,8 @@ class RabbitGame extends FlameGame
           joystickDirection.setZero();
           _walkStepTimer = 0.0; // ✅ Reset walk timer
           // ✅ ใช้ BattleOverlay แทน QuestionOverlay
-          AudioManager().playBgm(AudioManager.bgmBattle); // ✅ เปลี่ยน BGM เป็นเพลงบัตเทิล
+          AudioManager()
+              .playBgm(AudioManager.bgmBattle); // ✅ เปลี่ยน BGM เป็นเพลงบัตเทิล
           overlays.remove(
               'BattleOverlay'); // remove ก่อนเพื่อ rebuild ด้วย enemy ใหม่
           overlays.add('BattleOverlay');
@@ -1147,10 +1177,10 @@ class RabbitGame extends FlameGame
   void endCutsceneMode() {
     isCutsceneMode = false;
     freezeTimer = 0; // ปลดล็อค freeze
-    
+
     // ✅ เล่น BGM overworld หลังจบ cutscene
     AudioManager().playBgm(AudioManager.bgmOverworld);
-    
+
     // แสดง UI ปกติ
     overlays.add('SkillOverlay');
     overlays.add('BagOverlay');
@@ -1279,18 +1309,19 @@ class RabbitGame extends FlameGame
           for (int y = 0; y < layer.height; y++) {
             for (int x = 0; x < layer.width; x++) {
               final gid = tileData[y][x].tile;
-              
-              if (gid != 0) { 
+
+              if (gid != 0) {
                 final tile = map.tileMap.map.tileByGid(gid);
-                
+
                 if (tile != null) {
-                  final isSolid = tile.properties.getValue<bool>('isSolid') ?? false;
-                  
+                  final isSolid =
+                      tile.properties.getValue<bool>('isSolid') ?? false;
+
                   if (isSolid) {
                     world.add(Obstacle(
                       position: Vector2(x * destTileSize.x, y * destTileSize.y),
                       size: destTileSize,
-                    )); 
+                    ));
                   }
                 }
               }
@@ -1306,7 +1337,7 @@ class RabbitGame extends FlameGame
       if (colLayer != null) {
         for (final obj in colLayer.objects) {
           world.add(Obstacle(
-            // Notice we do NOT multiply by destTileSize here. 
+            // Notice we do NOT multiply by destTileSize here.
             // Object layers already use exact pixel coordinates!
             position: Vector2(obj.x, obj.y),
             size: Vector2(obj.width, obj.height),
@@ -1408,8 +1439,8 @@ class RabbitGame extends FlameGame
         name: 'HP Potion (S)',
       ));
     } else {
-       // Rare case: drop a random subject book
-       world.add(WorldItem(
+      // Rare case: drop a random subject book
+      world.add(WorldItem(
         position: position + Vector2(-10, -10),
         size: Vector2(24, 24),
         name: 'story: จดหมายลับแห่งธาตุ$element',
@@ -1439,8 +1470,8 @@ class RabbitGame extends FlameGame
         final tileWidth = tileset.tileWidth ?? 16;
         final tileHeight = tileset.tileHeight ?? 16;
         final columns = tileset.columns ?? 1;
-        final spacing = tileset.spacing ?? 0;
-        final margin = tileset.margin ?? 0;
+        final spacing = tileset.spacing;
+        final margin = tileset.margin;
         final row = localId ~/ columns;
         final col = localId % columns;
         final x = margin + (col * (tileWidth + spacing));
@@ -1484,7 +1515,7 @@ class RabbitGame extends FlameGame
   void showDialog(String message) {
     currentDialogMessage = message;
     isDialogActive = true;
-    
+
     // ✅ เปลี่ยนท่าทาง NPC เป็นตื่น (Idle)
     if (activeNpc != null) {
       talkingNpc = activeNpc;
@@ -1498,7 +1529,7 @@ class RabbitGame extends FlameGame
 
   void closeDialog() {
     isDialogActive = false;
-    
+
     // ✅ กลับไปนอน (Sleeping)
     talkingNpc?.setState(NpcState.sleeping);
     talkingNpc = null;
@@ -1549,7 +1580,7 @@ class RabbitGame extends FlameGame
       enemy!.die();
 
       // ✅ Game Ending Condition: ชนะบอสใหญ่
-      if (enemy!.enemyName.toLowerCase().contains('บอส') || 
+      if (enemy!.enemyName.toLowerCase().contains('บอส') ||
           enemy!.enemyName.toLowerCase().contains('boss')) {
         overlays.remove('BattleOverlay');
         overlays.add('GameEndingOverlay');
@@ -1632,7 +1663,8 @@ class RabbitGame extends FlameGame
 
 enum NpcState { sleeping, idle }
 
-class Npc extends SpriteAnimationGroupComponent<NpcState> with HasGameRef<RabbitGame> {
+class Npc extends SpriteAnimationGroupComponent<NpcState>
+    with HasGameRef<RabbitGame> {
   final String message;
   Npc(
       {required Vector2 position,
@@ -1680,7 +1712,6 @@ class Npc extends SpriteAnimationGroupComponent<NpcState> with HasGameRef<Rabbit
   void setState(NpcState state) {
     current = state;
   }
-
 }
 
 class Portal extends PositionComponent {
@@ -1725,8 +1756,8 @@ class WorldItem extends SpriteAnimationComponent with HasGameRef<RabbitGame> {
   final Sprite? mapSprite; // ✅ เพิ่มตัวแปรสำหรับรับ Sprite จาก Tiled
 
   WorldItem({
-    required Vector2 position, 
-    required Vector2 size, 
+    required Vector2 position,
+    required Vector2 size,
     required this.name,
     this.mapSprite, // ✅ รับค่า mapSprite
   }) {
@@ -1805,6 +1836,7 @@ class Fireball extends SpriteAnimationComponent
 
   @override
   void render(Canvas canvas) {
+    super.render(canvas);
     canvas.drawCircle(
         Offset(size.x / 2, size.y / 2), 8, Paint()..color = Colors.orange);
     canvas.drawCircle(

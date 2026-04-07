@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flame/widgets.dart'; 
 import 'package:flame/components.dart';
 import '../data/game_data.dart';
-import '../game/rabbit_game.dart'; 
+import '../game/main_game.dart'; 
 import '../utils/audio_manager.dart'; // ✅ Import AudioManager
 
 class CharacterPage extends StatefulWidget {
@@ -22,8 +22,6 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
     AudioManager().playBgm(AudioManager.bgmMenuPages); // ✅ BGM หน้า Character
   }
 
-  // เช็คว่าใส่เกราะอยู่ไหม
-  bool get _isArmorEquipped => GameData.isEquipped("เกราะวิเศษ (Magic Armor)");
   // เช็คว่าถือดาบอยู่ไหม (เพื่อคำนวณ ATK โชว์)
   bool get _isSwordEquipped => GameData.isEquipped("ดาบสายฟ้า (Thunder Sword)");
 
@@ -185,17 +183,16 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
     );
   }
 
-  // ✅ New Vertical Profile Layout
+  // ✅ New Vertical Profile Layout (ใช้ GameData sprite config)
   Widget _buildVerticalCharacterProfile() {
-    final String spritePath = _isArmorEquipped ? 'rabbit_idle_armor.png' : 'rabbit_idle.png';
-    final double textureSize = _isArmorEquipped ? 32.0 : 32.0;
     int currentAtk = 30 + (_isSwordEquipped ? 20 : 0);
+    final double frameSize = GameData.spriteFrameSize;
 
     return Column(
       children: [
-        // Character Name
+        // Character Name (จาก GameData)
         Text(
-          _isArmorEquipped ? "Armored Hero" : "Hero Rabbit",
+          GameData.playerName,
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5),
         ),
         const SizedBox(height: 10),
@@ -217,12 +214,12 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
               width: 120,
               height: 120,
               child: SpriteAnimationWidget.asset(
-                path: spritePath,
+                path: GameData.playerIdleSprite,
                 playing: true,
                 data: SpriteAnimationData.sequenced(
-                  amount: 4,          
-                  stepTime: 0.2,      
-                  textureSize: Vector2.all(textureSize),
+                  amount: GameData.idleFrameCount,
+                  stepTime: GameData.idleStepTime,
+                  textureSize: Vector2.all(frameSize),
                 ),
               ),
             ),

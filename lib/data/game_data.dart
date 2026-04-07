@@ -7,6 +7,52 @@ class GameData {
   static int playerLevel = 1;
   static int currentExp = 0; // เพิ่มค่าประสบการณ์
 
+  // =====================================================================
+  // ✅ Player Sprite Configuration (centralized)
+  // =====================================================================
+  static String get _spriteSuffix =>
+      isEquipped("เกราะวิเศษ (Magic Armor)") ? "_armor" : "";
+
+  /// ชื่อไฟล์ Sprite (ใช้ใน Flame gameRef.images.load)
+  static String get playerIdleSprite =>
+      'Sword_Idle_with_shadow$_spriteSuffix.png';
+  static String get playerRunSprite =>
+      'Sword_Run_with_shadow$_spriteSuffix.png';
+  static String get playerWalkSprite =>
+      'Sword_Walk_with_shadow$_spriteSuffix.png';
+  static String get playerAttackSprite =>
+      'Sword_attack_with_shadow$_spriteSuffix.png';
+  static String get playerRunAttackSprite =>
+      'Sword_Run_Attack_with_shadow$_spriteSuffix.png';
+  static String get playerWalkAttackSprite =>
+      'Sword_Walk_Attack_with_shadow$_spriteSuffix.png';
+  static String get playerHitSprite => 'Sword_Hurt_with_shadow.png';
+  static String get playerDeadSprite => 'Sword_Death_with_shadow.png';
+
+  /// Asset path (ใช้ใน Flutter widgets เช่น AssetImage, rootBundle)
+  static String get playerIdleAsset => 'assets/images/$playerIdleSprite';
+
+  /// ขนาดเฟรม sprite (srcSize)
+  static double get spriteFrameSize => 64.0;
+
+  /// จำนวนเฟรมแอนิเมชันแต่ละชุด
+  static int get idleFrameCount => 13; // row 0-2: 13 frames, row 3: 5 frames
+  static int get idleUpFrameCount => 5;
+  static int get runFrameCount => 9;
+  static int get hitFrameCount => 6;
+  static int get deadFrameCount => 8;
+
+  /// Step time ของแต่ละชุดแอนิเมชัน
+  static double get idleStepTime => 0.25;
+  static double get runStepTime => 0.1;
+  static double get hitStepTime => 0.12;
+  static double get deadStepTime => 0.25;
+
+  /// ชื่อตัวละคร
+  static String get playerName =>
+      isEquipped("เกราะวิเศษ (Magic Armor)") ? "Armored Hero" : "Hero Rabbit";
+
+
   // ✅ Cutscene flag — เล่น intro cutscene แค่ครั้งเดียว
   static bool hasSeenIntroCutscene = false;
   

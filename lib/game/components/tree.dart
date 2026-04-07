@@ -2,7 +2,7 @@
 import 'package:flame/components.dart';
 import 'package:flame/collisions.dart';
 import 'package:flutter/material.dart';
-import 'rabbit.dart'; // import ตัวละคร Rabbit เพื่อเช็ค type
+import 'player.dart'; // import ตัวละคร Rabbit เพื่อเช็ค type
 
 class Tree extends SpriteComponent with CollisionCallbacks {
   

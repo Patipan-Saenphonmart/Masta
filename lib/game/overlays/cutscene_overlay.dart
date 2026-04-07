@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import '../rabbit_game.dart';
+import '../main_game.dart';
 import '../../data/game_data.dart';
 import '../../models/book.dart';
 import '../components/enemy.dart';

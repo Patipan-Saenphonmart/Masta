@@ -4,7 +4,7 @@ import 'page/home_page.dart';
 import 'data/game_data.dart';
 import 'utils/save_manager.dart';
 import 'utils/audio_manager.dart'; // ✅ Import AudioManager
-import 'game/rabbit_game.dart'; // ✅ Import RabbitGamePage
+import 'game/main_game.dart'; // ✅ Import RabbitGamePage
 
 class TitleScreen extends StatefulWidget {
   const TitleScreen({super.key});

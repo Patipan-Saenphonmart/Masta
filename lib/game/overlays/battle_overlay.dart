@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:math';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../data/game_data.dart';
 import '../../utils/save_manager.dart'; // ✅ Import SaveManager
 import '../../data/question_bank.dart';
-import '../rabbit_game.dart';
+import '../main_game.dart';
 import '../battle/battle_engine.dart';
 import '../battle/battle_models.dart';
 import '../components/enemy.dart';
@@ -63,10 +61,7 @@ class _BattleOverlayState extends State<BattleOverlay>
   late AnimationController _slideCtrl;
   late AnimationController _spriteAnimCtrl;
 
-  // --- Sprite ---
-  ui.Image? _enemySpriteImage;
-  ui.Image? _playerSpriteImage;
-  bool _spritesLoaded = false;
+
 
   // --- Message log ---
   String battleMessage = '';
@@ -82,12 +77,22 @@ class _BattleOverlayState extends State<BattleOverlay>
     _shakeAnim = Tween<double>(begin: 0, end: 10).animate(
       CurvedAnimation(parent: _shakeCtrl, curve: Curves.elasticIn),
     );
+    _shakeAnim.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _shakeCtrl.reverse();
+      }
+    });
 
     _resultCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 400));
     _resultScale = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _resultCtrl, curve: Curves.elasticOut),
     );
+    _resultScale.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _resultCtrl.reverse();
+      }
+    });
 
     _slideCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 300));
@@ -97,7 +102,6 @@ class _BattleOverlayState extends State<BattleOverlay>
       duration: const Duration(milliseconds: 600),
     )..repeat();
 
-    _loadSpriteImages();
     _startIntro();
   }
 
@@ -122,7 +126,14 @@ class _BattleOverlayState extends State<BattleOverlay>
     });
     Future.delayed(const Duration(milliseconds: 1800), () {
       if (!mounted) return;
-      _startEnemyAsks();
+      _showActionMenu();
+    });
+  }
+
+  void _showActionMenu() {
+    setState(() {
+      phase = 'actionMenu';
+      battleMessage = 'เลือกการกระทำ';
     });
   }
 
@@ -321,42 +332,6 @@ class _BattleOverlayState extends State<BattleOverlay>
     }
   }
 
-  // =====================================================================
-  // SPRITE LOADING
-  // =====================================================================
-  Future<void> _loadSpriteImages() async {
-    try {
-      _enemySpriteImage =
-          await _loadImage(_enemySpriteAsset(widget.enemy.element));
-
-      // ✅ เช็คว่าใส่เกราะไหม เพื่อโหลดรูปให้ตรงกับสถานะ
-      bool hasArmor = GameData.isEquipped("เกราะวิเศษ (Magic Armor)");
-      String suffix = hasArmor ? "_armor" : "";
-
-      _playerSpriteImage =
-          await _loadImage('assets/images/rabbit_idle$suffix.png');
-
-      if (mounted) setState(() => _spritesLoaded = true);
-    } catch (e) {
-      debugPrint('Sprite load error: $e');
-    }
-  }
-
-  Future<ui.Image> _loadImage(String path) async {
-    final data = await rootBundle.load(path);
-    final codec = await ui.instantiateImageCodec(data.buffer.asUint8List());
-    final frame = await codec.getNextFrame();
-    return frame.image;
-  }
-
-  String _enemySpriteAsset(String element) {
-    // ✅ โหลดรูปตามธาตุ (64x64 Frames)
-    // อาคาน่าและไวต้าใช้ _idle แต่พ่นไฟและเน็กซัสใช้ชื่อหลัก
-    if (element == 'ignis' || element == 'nexus') {
-      return 'assets/images/battle_enemy_$element.png';
-    }
-    return 'assets/images/battle_enemy_${element}_idle.png';
-  }
 
   // =====================================================================
   // COLORS / HELPERS
@@ -397,12 +372,10 @@ class _BattleOverlayState extends State<BattleOverlay>
       color: Colors.transparent,
       child: Stack(
         children: [
-          // =================== BACKGROUND (Sprite) ==================
+          // =================== BACKGROUND (Hologram Glass) ==================
           Positioned.fill(
-            child: Image.asset(
-              'assets/images/back_attrack.png',
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.none,
+            child: Container(
+              color: Colors.black.withOpacity(0),
             ),
           ),
 
@@ -419,58 +392,6 @@ class _BattleOverlayState extends State<BattleOverlay>
               maxHp: enemyMaxHp,
               color: _elementColor(profile.element),
               isEnemy: true,
-            ),
-          ),
-
-          // =================== ENEMY SPRITE (บนโขดหินล่างขวา) ===================
-          Positioned(
-            top: MediaQuery.of(context).size.height *
-                0.40, // ย้ายลงมาใกล้ player
-            right: MediaQuery.of(context).size.width * 0.05, // ชิดขวาขึ้น
-            child: AnimatedBuilder(
-              animation: _shakeAnim,
-              builder: (ctx, child) {
-                final offset = (phase == 'showResult' &&
-                        lastResult != null &&
-                        lastResult!.correct &&
-                        engine.currentTurn == BattleTurn.enemyAsks)
-                    ? sin(_shakeCtrl.value * pi * 4) * _shakeAnim.value
-                    : 0.0;
-                return Transform.translate(
-                    offset: Offset(offset, 0), child: child);
-              },
-              child: _spritesLoaded && _enemySpriteImage != null
-                  ? SizedBox(
-                      width: 120, // ปรับให้ใหญ่ขึ้นให้มีขนาดใกล้เคียง Player
-                      height: 120,
-                      child: Transform(
-                        alignment: Alignment.center,
-                        transform: Matrix4.rotationY(
-                            pi), // หันหน้าไปหา player (ทางซ้าย)
-                        child: AnimatedBuilder(
-                          animation: _spriteAnimCtrl,
-                          builder: (ctx, _) => CustomPaint(
-                            painter: _BattleSpritePainter(
-                              image: _enemySpriteImage!,
-                              animationValue: _spriteAnimCtrl.value,
-                              frameWidth: 64, // ✅ ศัตรูเปลี่ยนเป็น 64x64
-                              frameHeight: 64,
-                            ),
-                          ),
-                        ),
-                      ),
-                    )
-                  : Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: _elementColor(profile.element).withOpacity(0.3),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Center(
-                          child: Text(profile.elementEmoji,
-                              style: const TextStyle(fontSize: 40))),
-                    ),
             ),
           ),
 
@@ -491,49 +412,7 @@ class _BattleOverlayState extends State<BattleOverlay>
           ),
 
           // =================== PLAYER SPRITE (ซ้ายล่าง — บน platform ดิน) ===================
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.35,
-            left: MediaQuery.of(context).size.width * 0.05,
-            child: AnimatedBuilder(
-              animation: _shakeAnim,
-              builder: (ctx, child) {
-                final offset = (phase == 'aiResult' &&
-                        lastResult != null &&
-                        lastResult!.correct)
-                    ? sin(_shakeCtrl.value * pi * 4) * _shakeAnim.value
-                    : 0.0;
-                return Transform.translate(
-                    offset: Offset(offset, 0), child: child);
-              },
-              child: _spritesLoaded && _playerSpriteImage != null
-                  ? SizedBox(
-                      width: 120,
-                      height: 120,
-                      child: AnimatedBuilder(
-                        animation: _spriteAnimCtrl,
-                        builder: (ctx, _) => CustomPaint(
-                          painter: _BattleSpritePainter(
-                            image: _playerSpriteImage!,
-                            animationValue: _spriteAnimCtrl.value,
-                            frameWidth:
-                                32, // ปรับขนาด frame ตาม sprite sheet ของกระต่าย (ปกติคือ 32x32)
-                            frameHeight: 32,
-                          ),
-                        ),
-                      ),
-                    )
-                  : Container(
-                      width: 110,
-                      height: 110,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4CAF50).withOpacity(0.2),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                          child: Text('🐰', style: TextStyle(fontSize: 56))),
-                    ),
-            ),
-          ),
+          
 
           // =================== COMBO BADGE (ถ้ามี combo) ===================
           if (GameData.comboCount >= 2)
@@ -721,6 +600,8 @@ class _BattleOverlayState extends State<BattleOverlay>
       case 'victory':
       case 'defeat':
         return _buildWaitingPanel();
+      case 'actionMenu':
+        return _buildMainMenuPanel();
       case 'enemyAsks':
         return loading ? _buildLoadingPanel() : _buildQuestionPanel();
       case 'playerChoice':
@@ -728,6 +609,59 @@ class _BattleOverlayState extends State<BattleOverlay>
       default:
         return _buildWaitingPanel();
     }
+  }
+
+  Widget _buildMainMenuPanel() {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // 1. Attack Button
+          ElevatedButton.icon(
+            onPressed: () {
+              final result = engine.processPhysicalAttack();
+              setState(() {
+                battleMessage = result['message'];
+                if (result['success'] == true) {
+                   // Add screen shake or hit animation here!
+                   if (engine.battleEnded) {
+                     _endBattle();
+                   } else {
+                     // Go back to menu after a short delay
+                     Future.delayed(const Duration(seconds: 2), _showActionMenu);
+                   }
+                } else {
+                   // Attack failed (Shield is up)
+                   Future.delayed(const Duration(seconds: 2), _showActionMenu);
+                }
+              });
+            },
+            icon: const Icon(Icons.sports_martial_arts),
+            label: const Text('Attack'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+          ),
+          
+          // 2. Scan Button
+          ElevatedButton.icon(
+            onPressed: () {
+              _startEnemyAsks(); // Triggers the question popup
+            },
+            icon: const Icon(Icons.menu_book),
+            label: const Text('Scan'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+          ),
+
+          // 3. Flee Button
+          ElevatedButton.icon(
+            onPressed: _onFlee,
+            icon: const Icon(Icons.directions_run),
+            label: const Text('Flee'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
+          ),
+        ],
+      ),
+    );
   }
 
   // --- Waiting / Loading ---
@@ -965,50 +899,3 @@ class _BattleOverlayState extends State<BattleOverlay>
   }
 }
 
-// =======================================================================
-// CustomPainters สำหรับ Sprite Animation
-// =======================================================================
-
-/// วาด sprite sheet animation — เลือก frame ตาม animationValue
-class _BattleSpritePainter extends CustomPainter {
-  final ui.Image image;
-  final double animationValue;
-  final int frameWidth;
-  final int frameHeight;
-
-  _BattleSpritePainter({
-    required this.image,
-    required this.animationValue,
-    required this.frameWidth,
-    required this.frameHeight,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // คำนวณจำนวน frames จากความกว้างรูป
-    final totalFrames = (image.width / frameWidth).floor();
-    if (totalFrames <= 0) return;
-
-    final frameIndex =
-        (animationValue * totalFrames).floor().clamp(0, totalFrames - 1);
-
-    final src = Rect.fromLTWH(
-      frameIndex * frameWidth.toDouble(),
-      0,
-      frameWidth.toDouble(),
-      frameHeight.toDouble(),
-    );
-    final dst = Rect.fromLTWH(0, 0, size.width, size.height);
-
-    canvas.drawImageRect(
-      image,
-      src,
-      dst,
-      Paint()..filterQuality = FilterQuality.none,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_BattleSpritePainter old) =>
-      old.animationValue != animationValue;
-}
