@@ -30,8 +30,7 @@ class _BattleOverlayState extends State<BattleOverlay>
 
   // --- State Machine ---
   // idle → enemyAsks → showResult → pickSubject → pickQuestion → aiAnswers → showResult → ...
-  String phase =
-      'intro'; // intro, enemyAsks, showResult, pickSubject, pickQuestion, aiThinking, aiResult
+  String phase = 'enemyAsks'; // intro, enemyAsks, showResult, pickSubject, pickQuestion, aiThinking, aiResult
 
   // --- Question Data ---
   Map<String, dynamic>? currentQuestion;
@@ -101,8 +100,8 @@ class _BattleOverlayState extends State<BattleOverlay>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     )..repeat();
-
-    _startIntro();
+    // ✅ initState เพื่อดึงคำถามทันที!
+    _startEnemyAsks();
   }
 
   @override
@@ -115,27 +114,6 @@ class _BattleOverlayState extends State<BattleOverlay>
     super.dispose();
   }
 
-  // =====================================================================
-  // INTRO
-  // =====================================================================
-  void _startIntro() {
-    final profile = engine.enemyProfile;
-    setState(() {
-      phase = 'intro';
-      battleMessage = '${profile.elementEmoji} ${profile.name} ปรากฏตัว!';
-    });
-    Future.delayed(const Duration(milliseconds: 1800), () {
-      if (!mounted) return;
-      _showActionMenu();
-    });
-  }
-
-  void _showActionMenu() {
-    setState(() {
-      phase = 'actionMenu';
-      battleMessage = 'เลือกการกระทำ';
-    });
-  }
 
   // =====================================================================
   // PHASE 1: ศัตรูถาม → ผู้เล่นตอบ
@@ -221,10 +199,7 @@ class _BattleOverlayState extends State<BattleOverlay>
 
   void _showPhase1Result(bool correct) {
     if (correct) {
-      String msg = 'ถูกต้อง! โจมตี -${lastResult!.finalDamage} HP';
-      if (lastResult!.isCounter) {
-        msg = '⚡ Counter Attack! -${lastResult!.finalDamage} HP!';
-      }
+      String msg = 'ทำลายเกราะป้องกันสำเร็จ!';
       setState(() {
         battleMessage = msg;
         phase = 'showResult';
@@ -246,7 +221,7 @@ class _BattleOverlayState extends State<BattleOverlay>
       widget.game.rabbit.playHit();
     }
 
-    Future.delayed(const Duration(milliseconds: 2500), () {
+    Future.delayed(const Duration(milliseconds: 1000), () {
       if (!mounted) return;
       if (engine.battleEnded) {
         _endBattle();
@@ -318,7 +293,7 @@ class _BattleOverlayState extends State<BattleOverlay>
             '🏆 ชนะ!\nได้รับ ${rewards['gold']} Gold และ $expGained EXP!${leveledUp ? '\n🌟 เลเวลอัปเป็น ${GameData.playerLevel}!' : ''}';
       });
 
-      Future.delayed(const Duration(seconds: 3), () {
+      Future.delayed(const Duration(seconds: 1), () {
         if (mounted) widget.game.onBattleWon();
       });
     } else {
@@ -600,8 +575,6 @@ class _BattleOverlayState extends State<BattleOverlay>
       case 'victory':
       case 'defeat':
         return _buildWaitingPanel();
-      case 'actionMenu':
-        return _buildMainMenuPanel();
       case 'enemyAsks':
         return loading ? _buildLoadingPanel() : _buildQuestionPanel();
       case 'playerChoice':
@@ -611,58 +584,7 @@ class _BattleOverlayState extends State<BattleOverlay>
     }
   }
 
-  Widget _buildMainMenuPanel() {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          // 1. Attack Button
-          ElevatedButton.icon(
-            onPressed: () {
-              final result = engine.processPhysicalAttack();
-              setState(() {
-                battleMessage = result['message'];
-                if (result['success'] == true) {
-                   // Add screen shake or hit animation here!
-                   if (engine.battleEnded) {
-                     _endBattle();
-                   } else {
-                     // Go back to menu after a short delay
-                     Future.delayed(const Duration(seconds: 2), _showActionMenu);
-                   }
-                } else {
-                   // Attack failed (Shield is up)
-                   Future.delayed(const Duration(seconds: 2), _showActionMenu);
-                }
-              });
-            },
-            icon: const Icon(Icons.sports_martial_arts),
-            label: const Text('Attack'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-          ),
-          
-          // 2. Scan Button
-          ElevatedButton.icon(
-            onPressed: () {
-              _startEnemyAsks(); // Triggers the question popup
-            },
-            icon: const Icon(Icons.menu_book),
-            label: const Text('Scan'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
-          ),
 
-          // 3. Flee Button
-          ElevatedButton.icon(
-            onPressed: _onFlee,
-            icon: const Icon(Icons.directions_run),
-            label: const Text('Flee'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.grey),
-          ),
-        ],
-      ),
-    );
-  }
 
   // --- Waiting / Loading ---
   Widget _buildWaitingPanel() {

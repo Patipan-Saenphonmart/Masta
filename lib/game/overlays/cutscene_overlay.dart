@@ -483,7 +483,8 @@ class _CutsceneOverlayState extends State<CutsceneOverlay>
         )
           ..size = flame.Vector2(48, 48)
           ..priority = enemyPos.y.toInt();
-        tutorialEnemy.faceDirection(-1);
+        tutorialEnemy.lastDirection = flame.Vector2(-1, 0);
+        tutorialEnemy.updateAnimationState();
         widget.game.world.add(tutorialEnemy);
         widget.game.enemy = tutorialEnemy;
 

@@ -34,21 +34,10 @@ class BattleEngine {
     if (correct) {
       // ตอบถูก → โจมตีศัตรูแต่ไม่มี damage
       isShieldActive = false;
-      final multiplier = _timeMultiplier(timeUsed);
-      final isCounter = timeUsed <= 5.0;
-      final combo = GameData.comboMultiplier;
-      final totalMultiplier = multiplier * combo;
-
-      final damage = baseDamage;
-      final finalDmg = (damage * totalMultiplier).round();
-
-      // ลด HP ศัตรู
-      enemy.takeDamage(finalDmg);
-      if (enemy.hp <= 0) {
-        battleEnded = true;
-        winner = 'player';
-      }
-
+      
+      battleEnded = true;
+      winner = 'player';
+      
       return BattleResult(
         damage: 0,
         multiplier: 1.0,

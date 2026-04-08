@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
@@ -493,6 +494,8 @@ class RabbitGame extends FlameGame
   bool isGameOver = false; // ✅ Added Game Over flag
   bool inQuestion = false;
   bool answered = false;
+  bool isWorldFrozen = false; // ✅ "The World" freeze flag
+  bool isScanActive = false; // ✅ Scan ("The World") visual active
 
   // --- Cutscene State ---
   bool isCutsceneMode = false; // ✅ Cutscene mode flag
@@ -510,10 +513,14 @@ class RabbitGame extends FlameGame
   Npc? talkingNpc; // ✅ เก็บ NPC ที่กำลังคุยอยู่ เพื่อเปลี่ยนท่าทาง
   WorldItem? activeItem; // ✅ เก็บ Item ที่ยืนทับอยู่
 
-  // --- Skill States ---
+  // ✅ Skill States
   bool isDashing = false;
   double dashTimer = 0.0;
   double freezeTimer = 0.0;
+  Vector2 _dashAttackVelocity = Vector2.zero(); // สำหรับการพุ่งโจมตี
+
+  // ✅ Track enemies hit during current attack to avoid multi-hit
+  final Set<Enemy> hitEnemiesThisAttack = {};
 
   // --- Input ---
   final Random rand = Random();
@@ -548,8 +555,7 @@ class RabbitGame extends FlameGame
     final savedPos = await SaveManager.loadPlayerPosition();
     final spawnPos = savedPos != null
         ? Vector2(savedPos['x']!, savedPos['y']!)
-        : Vector2(3678,
-            2464); // ********************** จุดกระต่ายเกิดใหม่ตั้งแต่เริ่มเกมครั้งแรก **********************
+        : Vector2(3678, 2464); // ********************** จุดกระต่ายเกิดใหม่ตั้งแต่เริ่มเกมครั้งแรก **********************
 
     world = World();
     add(world);
@@ -589,10 +595,16 @@ class RabbitGame extends FlameGame
       }
     }
 
+    // ✅ อัปเดต Camera Zoom (ต้องทำแม้โลกจะ freeze)
+    _updateCameraZoom(dt);
+
     if (isLoading) return;
 
     // ✅ Cutscene mode: หยุดทุก gameplay รอ cutscene overlay ควบคุม
     if (isCutsceneMode) return;
+
+    // ✅ "The World" freeze: หยุดทุกอย่างยกเว้น player
+    if (isWorldFrozen) return;
 
     // ✅ ป้องกันไม่ให้ทำอย่างอื่นถ้า Game Over แล้ว
     if (isGameOver) return;
@@ -615,6 +627,44 @@ class RabbitGame extends FlameGame
     }
 
     if (collisionCooldown > 0) collisionCooldown -= dt;
+
+    // ✅ Player Continuous Attack Hitbox Check (ติดหน้าผู้เล่นตลอดอนิเมชัน)
+    if (rabbit.isAttacking) {
+      const double attackReach = 40.0;
+      const double attackWidth = 60.0;
+      // ใช้ lastDirection จาก RabbitGame แทน rabbit.lastDirection
+      Vector2 attackCenter = rabbit.position + (lastDirection * attackReach);
+      Rect attackRect = Rect.fromCenter(
+        center: Offset(attackCenter.x, attackCenter.y),
+        width: attackWidth,
+        height: attackWidth,
+      );
+
+      // ✅ แสดง Hitbox สีแดงของผู้เล่นเพื่อทดสอบ (วาดตลอดที่ตี)
+      world.add(DebugHitbox(
+        position: attackCenter,
+        size: Vector2(attackWidth, attackWidth),
+        lifetime: 0.1,
+      ));
+
+      for (final e in world.children.whereType<Enemy>()) {
+        if (e.alive && !hitEnemiesThisAttack.contains(e)) {
+          if (attackRect.overlaps(e.toRect())) {
+            hitEnemiesThisAttack.add(e);
+            if (e.hasShield) {
+              showDialog("ศัตรูมีเกราะป้องกัน! ต้องใช้สแกนเพื่อทำลายเกราะก่อน");
+            } else {
+              int damage = 10;
+              if (GameData.isEquipped("ดาบสายฟ้า (Thunder Sword)")) {
+                damage += 5;
+              }
+              e.takeDamage(damage);
+              AudioManager().playSfx(AudioManager.sfxGetHit);
+            }
+          }
+        }
+      }
+    }
 
     if (isDashing) {
       dashTimer -= dt;
@@ -687,7 +737,29 @@ class RabbitGame extends FlameGame
 
   @override
   void render(Canvas canvas) {
-    super.render(canvas);
+    // ✅ Scan B&W effect: วาดผ่าน ColorFilter grayscale
+    if (isScanActive) {
+      canvas.saveLayer(
+        size.toRect(),
+        Paint()
+          ..colorFilter = const ui.ColorFilter.matrix(<double>[
+            0.2126, 0.7152, 0.0722, 0, 0, // R
+            0.2126, 0.7152, 0.0722, 0, 0, // G
+            0.2126, 0.7152, 0.0722, 0, 0, // B
+            0,      0,      0,      1, 0, // A
+          ]),
+      );
+      super.render(canvas);
+      canvas.restore();
+
+      // ✅ Dark overlay tint เพื่อเพิ่มอารมณ์ "The World"
+      canvas.drawRect(
+        size.toRect(),
+        Paint()..color = Colors.deepPurple.withOpacity(0.15),
+      );
+    } else {
+      super.render(canvas);
+    }
 
     // ✅ วาด Transition (หน้าจอดำ)
     if (_isTransitioning) {
@@ -702,86 +774,100 @@ class RabbitGame extends FlameGame
   void _updatePlayer(double dt) {
     if (rabbit.isHitPlaying) return;
 
-    if (joystickDirection.length > 0.01) {
-      // ✅ กำหนดทิศทางแอนิเมชัน โดยเช็คแกนที่มีค่ามากกว่า
-      if (joystickDirection.x.abs() >= joystickDirection.y.abs()) {
-        // แนวนอนเด่นกว่า → ซ้าย/ขวา
-        if (joystickDirection.x > 0) {
-          rabbit.setState(RabbitState.runRight);
-        } else {
-          rabbit.setState(RabbitState.runLeft);
-        }
+    Vector2 currentMoveDir = Vector2.zero();
+    double currentSpeed = 100.0 + (GameData.agility * 1.5);
+
+    // ✅ ถ้ากำลังโจมตี ให้เพิกเฉยต่อจอยสติ๊ก และล็อกทิศทาง/การเคลื่อนไหว
+    if (rabbit.isAttacking) {
+      if (_dashAttackVelocity.length > 0) {
+        currentMoveDir = _dashAttackVelocity.normalized();
+        currentSpeed = _dashAttackVelocity.length;
       } else {
-        // แนวตั้งเด่นกว่า → ขึ้น/ลง
-        if (joystickDirection.y > 0) {
-          rabbit.setState(RabbitState.runDown);
-        } else {
-          rabbit.setState(RabbitState.runUp);
-        }
+        return; // โจมตีอยู่กับที่
       }
-
-      lastDirection = joystickDirection.normalized();
-
-      // ✅ Walking step SFX (เล่นทุก interval)
-      _walkStepTimer += dt;
-      if (_walkStepTimer >= _walkStepInterval) {
-        _walkStepTimer = 0.0;
-        AudioManager().playWalkStep();
-      }
-
-      double currentSpeed = 100.0 + (GameData.agility * 1.5);
-      if (isDashing) currentSpeed *= 2.5;
-
-      final velocity = joystickDirection.normalized() * currentSpeed * dt;
-      // ✅ ใช้อิงจากขนาดและตำแหน่ง Hitbox ใหม่ (เฉพาะเท้า)
-      final double hitW = 30.0;
-      final double hitH = 14.0;
-      final double offsetY = 18.0;
-
-      final nextX = rabbit.position.x + velocity.x;
-      final rectX = Rect.fromCenter(
-          center: Offset(nextX, rabbit.position.y + offsetY),
-          width: hitW,
-          height: hitH);
-      bool hitWallX = false;
-      for (final obstacle in world.children.whereType<Obstacle>()) {
-        if (rectX.overlaps(obstacle.toRect())) {
-          hitWallX = true;
-          break;
-        }
-      }
-      if (!hitWallX) rabbit.position.x = nextX;
-
-      final nextY = rabbit.position.y + velocity.y;
-      final rectY = Rect.fromCenter(
-          center: Offset(rabbit.position.x, nextY + offsetY),
-          width: hitW,
-          height: hitH);
-      bool hitWallY = false;
-      for (final obstacle in world.children.whereType<Obstacle>()) {
-        if (rectY.overlaps(obstacle.toRect())) {
-          hitWallY = true;
-          break;
-        }
-      }
-      if (!hitWallY) rabbit.position.y = nextY;
     } else {
-      // ✅ Idle: เปลี่ยนเป็น idle ตามทิศทางสุดท้าย
-      if (lastDirection.x.abs() >= lastDirection.y.abs()) {
-        if (lastDirection.x > 0) {
-          rabbit.setState(RabbitState.idleRight);
+      if (joystickDirection.length > 0.01) {
+        currentMoveDir = joystickDirection.normalized();
+        if (isDashing) currentSpeed *= 2.5;
+
+        // ✅ กำหนดทิศทางแอนิเมชัน โดยเช็คแกนที่มีค่ามากกว่า
+        if (joystickDirection.x.abs() >= joystickDirection.y.abs()) {
+          // แนวนอนเด่นกว่า → ซ้าย/ขวา
+          if (joystickDirection.x > 0) {
+            rabbit.setState(RabbitState.runRight);
+          } else {
+            rabbit.setState(RabbitState.runLeft);
+          }
         } else {
-          rabbit.setState(RabbitState.idleLeft);
+          // แนวตั้งเด่นกว่า → ขึ้น/ลง
+          if (joystickDirection.y > 0) {
+            rabbit.setState(RabbitState.runDown);
+          } else {
+            rabbit.setState(RabbitState.runUp);
+          }
+        }
+
+        lastDirection = joystickDirection.normalized();
+
+        // ✅ Walking step SFX (เล่นทุก interval)
+        _walkStepTimer += dt;
+        if (_walkStepTimer >= _walkStepInterval) {
+          _walkStepTimer = 0.0;
+          AudioManager().playWalkStep();
         }
       } else {
-        if (lastDirection.y > 0) {
-          rabbit.setState(RabbitState.idleDown);
+        // ✅ Idle: เปลี่ยนเป็น idle ตามทิศทางสุดท้าย
+        if (lastDirection.x.abs() >= lastDirection.y.abs()) {
+          if (lastDirection.x > 0) {
+            rabbit.setState(RabbitState.idleRight);
+          } else {
+            rabbit.setState(RabbitState.idleLeft);
+          }
         } else {
-          rabbit.setState(RabbitState.idleUp);
+          if (lastDirection.y > 0) {
+            rabbit.setState(RabbitState.idleDown);
+          } else {
+            rabbit.setState(RabbitState.idleUp);
+          }
         }
+        _walkStepTimer = 0.0; // ✅ Reset walk timer when idle
+        return; // ไม่ต้องอัปเดต collision ถ้าไม่ได้เดิน
       }
-      _walkStepTimer = 0.0; // ✅ Reset walk timer when idle
     }
+
+    // --- Player Sliding Collision ---
+    final velocity = currentMoveDir * currentSpeed * dt;
+    final double hitW = 30.0;
+    final double hitH = 14.0;
+    final double offsetY = 18.0;
+
+    final nextX = rabbit.position.x + velocity.x;
+    final rectX = Rect.fromCenter(
+        center: Offset(nextX, rabbit.position.y + offsetY),
+        width: hitW,
+        height: hitH);
+    bool hitWallX = false;
+    for (final obstacle in world.children.whereType<Obstacle>()) {
+      if (rectX.overlaps(obstacle.toRect())) {
+        hitWallX = true;
+        break;
+      }
+    }
+    if (!hitWallX) rabbit.position.x = nextX;
+
+    final nextY = rabbit.position.y + velocity.y;
+    final rectY = Rect.fromCenter(
+        center: Offset(rabbit.position.x, nextY + offsetY),
+        width: hitW,
+        height: hitH);
+    bool hitWallY = false;
+    for (final obstacle in world.children.whereType<Obstacle>()) {
+      if (rectY.overlaps(obstacle.toRect())) {
+        hitWallY = true;
+        break;
+      }
+    }
+    if (!hitWallY) rabbit.position.y = nextY;
   }
 
   // ✅ ฟังก์ชันเช็ค NPC, Portal และ Item
@@ -931,27 +1017,64 @@ class RabbitGame extends FlameGame
 
     // แปลงกลับเป็นพิกัดจริงบนหน้าจอ
     return pathCells
-        .map((p) => Vector2(p.x * gridSize.toDouble(        // 1. ระยะที่ศัตรูจะ "เริ่มง้างตี"
-        double attackTriggerRange = 40.0; 
-        double distanceToPlayer = rabbit.position.distanceTo(e.position);
+        .map((p) => Vector2(p.x * gridSize.toDouble() + (gridSize / 2),
+            p.y * gridSize.toDouble() + (gridSize / 2)))
+        .toList();
+  }
 
-        // ถ้าผู้เล่นอยู่ในระยะ และศัตรูไม่ได้กำลังโจมตีอยู่ ให้เริ่มการโจมตี
-        if (distanceToPlayer <= attackTriggerRange && e.current != EnemyState.attack) {
-          Vector2 dirToPlayer = (rabbit.position - e.position).normalized();
-          e.attackTargetDir = dirToPlayer;
-          e.faceDirection(dirToPlayer.x);
-          
-          // เล่นแอนิเมชันโจมตี
-          e.playAttack();
-          // ✅ ดาเมจและการเช็ค Hitbox ตอนนี้ถูกย้ายไปทำแบบต่อเนื่อง (Continuous) ใน Enemy.update() เรียบร้อยแล้ว!
-          // ทำให้ Hitbox ขยับตามตัวละครตลอดเวลาตามที่คุณต้องการ
-        }��าะเท้าแบบ 2D Top-Down) ---
+  void _updateEnemies(double dt) {
+    bool hasChasingEnemy = false;
+    for (final e in world.children.whereType<Enemy>()) {
+      if (e.isMounted && e.alive) {
+        if (freezeTimer > 0) continue;
+
+        final distance = rabbit.position.distanceTo(e.position);
+        Vector2 moveDir = Vector2.zero();
+
+        e.pathRecalculateTimer -= dt;
+
+        e.pathRecalculateTimer -= dt;
+
+        // ✅ ถ้าศัตรูกำลังโจมตีอยู่ ให้บอทยืนนิ่งฟัน
+        if (e.isAttacking) {
+          moveDir = Vector2.zero();
+        }
+        else if (distance < enemyChaseRange) {
+          hasChasingEnemy = true;
+          // รีแคลคิวเลท Path ทุกๆ 0.5 วินาทีเพื่อไม่ให้หน่วงเครื่อง
+          if (e.pathRecalculateTimer <= 0) {
+            e.currentPath = findPathToPlayer(e.position);
+            e.pathRecalculateTimer = 0.5;
+          }
+
+          if (e.currentPath.isNotEmpty) {
+            // เล็งเป้าที่ waypoint ปัจจุบัน
+            final waypoint = e.currentPath.first;
+            if (e.position.distanceTo(waypoint) < 5.0) {
+              e.currentPath.removeAt(0);
+              if (e.currentPath.isNotEmpty) {
+                moveDir = (e.currentPath.first - e.position).normalized();
+              }
+            } else {
+              moveDir = (waypoint - e.position).normalized();
+            }
+          } else {
+            // ถ้าไม่เจอทางเดิน (ถูกขัง) เข้าถึงไม่ได้ ลองเดินตรงไปมั่วๆ
+            moveDir = (rabbit.position - e.position).normalized();
+          }
+        } else {
+          e.currentPath.clear();
+        }
+
+        e.velocity = moveDir * enemySpeed;
+
+        // --- Enemy Sliding Collision (เช็คกำแพงเฉพาะเท้าแบบ 2D Top-Down) ---
         final double enemyHitW = 20.0;
         final double enemyHitH = 10.0;
         final double enemyOffsetY = 10.0; // ขยับจุดเช็คชนลงมาที่เท้า
 
-        final double moveX = moveDir.x * enemySpeed * dt;
-        final double moveY = moveDir.y * enemySpeed * dt;
+        final double moveX = e.velocity.x * dt;
+        final double moveY = e.velocity.y * dt;
 
         final nextEx = e.position.x + moveX;
         final rectEx = Rect.fromCenter(
@@ -981,22 +1104,55 @@ class RabbitGame extends FlameGame
         }
         if (!hitWallEy) e.position.y = nextEy;
 
-        if (collisionCooldown <= 0 && rabbit.toRect().overlaps(e.toRect())) {
-          enemy = e;
-          inQuestion = true;
-          answered = false;
-          joystickDirection.setZero();
-          _walkStepTimer = 0.0; // ✅ Reset walk timer
-          // ✅ ใช้ BattleOverlay แทน QuestionOverlay
-          AudioManager()
-              .playBgm(AudioManager.bgmBattle); // ✅ เปลี่ยน BGM เป็นเพลงบัตเทิล
-          overlays.remove(
-              'BattleOverlay'); // remove ก่อนเพื่อ rebuild ด้วย enemy ใหม่
-          overlays.add('BattleOverlay');
-          overlays.remove('SkillOverlay');
-          overlays.remove('QuestOverlay'); // ✅ ซ่อนเควสต์ตอนต่อสู้
-          if (activePortal != null || activeNpc != null || activeItem != null) {
-            overlays.remove('ActionOverlay');
+        // 1. ระยะที่ศัตรูจะ "เริ่มง้างตี"
+        double attackTriggerRange = 40.0; 
+        double distanceToPlayer = rabbit.position.distanceTo(e.position);
+
+        // ถ้าผู้เล่นอยู่ในระยะ และศัตรูไม่ได้กำลังโจมตีอยู่ ให้เริ่มการโจมตี (และหมดคูลดาวน์แล้ว)
+        if (distanceToPlayer <= attackTriggerRange && !e.isAttacking && e.attackCooldownTimer <= 0) {
+          Vector2 dirToPlayer = (rabbit.position - e.position).normalized();
+          e.attackTargetDir = dirToPlayer;
+          
+          // เล่นแอนิเมชันโจมตีและตั้งค่าคูลดาวน์
+          e.playAttack();
+          e.hasDealtDamageThisAttack = false; // เซ็ตสถานะว่ายังไม่ได้ทำดาเมจในรอบการโจมตีนี้
+          e.attackCooldownTimer = 2.0; // ✅ ตั้งคูลดาวน์การโจมตีครั้งต่อไป (เช่น 2 วินาที)
+        }
+
+        // 2. เช็คการทำดาเมจ "ระหว่าง" อนิเมชัน (ตรวจจับตลอดช่วงการโจมตี ไม่เช็คแค่ช่วง 95%)
+        if (e.isAttacking && !e.hasDealtDamageThisAttack) {
+          // ไม่ต้องรอให้ถึง 95% ให้เริ่มเช็คหลังจากเริ่มโจมตีสัก 30% ของอนิเมชันขึ้นไป เพื่อให้เกิดความสมจริง
+          double hitTimeStart = (e.attackFrames * e.attackStepTime) * 0.3;
+
+          if (e.attackElapsed >= hitTimeStart) {
+            // สร้างกล่องโจมตีของศัตรู (ยื่นไปด้านหน้าตามทิศทางที่หันล่าสุด)
+            Vector2 forwardDir = moveDir.length > 0.01 ? moveDir : e.attackTargetDir;
+            Vector2 enemyAttackCenter = e.position + (forwardDir * 30.0);
+            Rect enemyAttackRect = Rect.fromCenter(
+              center: Offset(enemyAttackCenter.x, enemyAttackCenter.y),
+              width: 45.0,
+              height: 45.0,
+            );
+
+            // ✅ แสดง Hitbox สีแดงของศัตรูเพื่อทดสอบ (วาดชั่วคราว)
+            world.add(DebugHitbox(
+              position: enemyAttackCenter,
+              size: Vector2(45.0, 45.0),
+              lifetime: 0.1,
+            ));
+
+            // เช็คว่ากระต่ายยังอยู่ในกล่องไหม และผู้เล่นไม่ติดคูลดาวน์อมตะ
+            if (collisionCooldown <= 0 && enemyAttackRect.overlaps(rabbit.toRect())) {
+              // โดนตีเต็มๆ! ทำครั้งเดียวในหนึ่งการโจมตี
+              e.hasDealtDamageThisAttack = true; 
+              enemy = e;
+              int damage = 10; 
+              damagePlayer(damage);
+              rabbit.playHit();
+              
+              // ✅ ยกเลิกการผลักออกก่อนหลังถูกโจมตี (ไม่มี knockback)
+              collisionCooldown = 1.5; // คูลดาวน์อมตะให้ผู้เล่นรอดพ้นจากการโดนรุมตีชั่วคราว
+            } 
           }
         }
       }
@@ -1535,7 +1691,8 @@ class RabbitGame extends FlameGame
   // ✅ Quiz Battle: callbacks หลังจบ Battle
   void onBattleWon() {
     if (enemy != null) {
-      enemy!.die();
+      enemy!.hasShield = false; // โล่แตกแล้ว ให้สามารถโดนโจมตีปกติได้
+      showDialog("เกราะของ ${enemy!.enemyName} ถูกทำลายแล้ว! โจมตีได้เลย!");
 
       // ✅ Game Ending Condition: ชนะบอสใหญ่
       if (enemy!.enemyName.toLowerCase().contains('บอส') ||
@@ -1548,6 +1705,8 @@ class RabbitGame extends FlameGame
     inQuestion = false;
     _isEnemyChasingPlayer = false;
     collisionCooldown = 2.0;
+    unfreezeWorld(); // ✅ คืนเวลา
+    isScanActive = false; // ✅ ปิดหน้าจอขาวดำ
     overlays.remove('BattleOverlay');
     overlays.add('SkillOverlay');
     overlays.add('QuestOverlay'); // ✅ กลับมาแสดงเควสต์
@@ -1565,6 +1724,8 @@ class RabbitGame extends FlameGame
     inQuestion = false;
     _isEnemyChasingPlayer = false;
     collisionCooldown = 2.0;
+    unfreezeWorld(); // ✅ คืนเวลา
+    isScanActive = false; // ✅ ปิดหน้าจอขาวดำ
     overlays.remove('BattleOverlay');
     overlays.add('SkillOverlay');
     overlays.add('QuestOverlay'); // ✅ กลับมาแสดงเควสต์
@@ -1612,6 +1773,119 @@ class RabbitGame extends FlameGame
     SaveManager.savePlayerPosition(rabbit.position.x, rabbit.position.y);
     AudioManager().stopWalkStep();
     super.onRemove();
+  }
+
+  // -------------------------------------------------------------------
+  // ✅ Camera Zoom (สำหรับ "The World" effect)
+  // -------------------------------------------------------------------
+  double _defaultZoom = 1.8;
+  double _targetZoom = 1.8;
+  bool _isZooming = false;
+  double _zoomSpeed = 2.0;
+
+  void zoomCamera(double targetZoom, {double speed = 2.0}) {
+    _targetZoom = targetZoom;
+    _zoomSpeed = speed;
+    _isZooming = true;
+  }
+
+  void resetCameraZoom({double speed = 2.0}) {
+    _targetZoom = _defaultZoom;
+    _zoomSpeed = speed;
+    _isZooming = true;
+  }
+
+  void _updateCameraZoom(double dt) {
+    if (!_isZooming) return;
+    final currentZoom = cameraComponent.viewfinder.zoom;
+    final diff = _targetZoom - currentZoom;
+    if (diff.abs() < 0.01) {
+      cameraComponent.viewfinder.zoom = _targetZoom;
+      _isZooming = false;
+    } else {
+      cameraComponent.viewfinder.zoom += diff * _zoomSpeed * dt;
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // ✅ World Freeze — "The World" (หยุดเวลาทั้งโลก)
+  // -------------------------------------------------------------------
+  void freezeWorld() {
+    isWorldFrozen = true;
+    // หยุดมอนสเตอร์ทั้งหมด
+    for (final e in world.children.whereType<Enemy>()) {
+      e.velocity = Vector2.zero();
+    }
+  }
+
+  void unfreezeWorld() {
+    isWorldFrozen = false;
+  }
+
+  // -------------------------------------------------------------------
+  // ✅ Overworld Attack — โจมตีศัตรูรอบตัวในโลก real-time
+  // -------------------------------------------------------------------
+  void attackNearbyEnemy() {
+    final bool isRunning = joystickDirection.length > 0.01;
+    rabbit.playAttack(isRunning: isRunning);
+
+    if (isRunning) {
+      double dashSpeed = (100.0 + (GameData.agility * 1.5)) * 1.2; // พุ่งตีด้วยสปีด x1.2
+      _dashAttackVelocity = lastDirection * dashSpeed;
+    } else {
+      _dashAttackVelocity = Vector2.zero();
+    }
+
+    // เคลียร์ศัตรูที่เคยโดนดาเมจในการโจมตีครั้งก่อน เพื่อให้เริ่มนับคอมโบใหม่และตีโดนจากการขยับ
+    hitEnemiesThisAttack.clear();
+  }
+
+  // -------------------------------------------------------------------
+  // ✅ Scan World — "The World" (สแกนทำลายเกราะศัตรู)
+  // -------------------------------------------------------------------
+  void scanWorld() {
+    // 1. หาศัตรูที่ใกล้ที่สุดที่มีเกราะ
+    Enemy? targetEnemy;
+    double minDistance = 150.0; // ระยะมองของสแกน 150px
+    for (final e in world.children.whereType<Enemy>()) {
+      if (e.alive && e.hasShield) {
+        final double dist = rabbit.position.distanceTo(e.position);
+        if (dist < minDistance) {
+          minDistance = dist;
+          targetEnemy = e;
+        }
+      }
+    }
+
+    if (targetEnemy != null) {
+      freezeWorld();
+      // 2. ถ้าเจอ ให้เข้าสู่โหมดตอบคำถาม
+      enemy = targetEnemy;
+      inQuestion = true;
+      answered = false;
+      joystickDirection.setZero();
+      _walkStepTimer = 0.0;
+      AudioManager().playBgm(AudioManager.bgmBattle);
+      overlays.remove('BattleOverlay');
+      overlays.add('BattleOverlay');
+      overlays.remove('SkillOverlay');
+      overlays.remove('QuestOverlay');
+      if (activePortal != null || activeNpc != null || activeItem != null) {
+        overlays.remove('ActionOverlay');
+      }
+
+      // Visual Effects (แค่เล่นเสียงและแว๊บนึง ไม่ค้าง freeze)
+      isScanActive = true;
+      AudioManager().playSfx(AudioManager.sfxTimeStop);
+    } else {
+      // 3. ถ้าไม่เจอศัตรู โชว์ข้อความ
+      showDialog("ไม่พบศัตรูที่ต้องสแกนในบริเวณใกล้เคียง");
+    }
+  }
+
+  void endScanWorld() {
+    isScanActive = false;
+    // Note: ถ้ากำลังสู้ BattleOverlay อยู่ ก็ปล่อยไป หรือถ้าสแกนไม่เจอ ใครทำก็ปลดออก
   }
 }
 
@@ -1843,3 +2117,36 @@ class _RespawnData {
     required this.timer,
   });
 }
+
+// ✅ กล่องสีแดงสำหรับเช็คระยะ Hitbox
+class DebugHitbox extends PositionComponent {
+  final double lifetime;
+  double elapsed = 0.0;
+
+  DebugHitbox({
+    required Vector2 position,
+    required Vector2 size,
+    this.lifetime = 0.3,
+  }) : super(position: position, size: size, anchor: Anchor.center);
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    canvas.drawRect(
+      size.toRect(),
+      Paint()
+        ..color = Colors.red.withOpacity(0.5)
+        ..style = PaintingStyle.fill,
+    );
+  }
+
+  @override
+  void update(double dt) {
+    super.update(dt);
+    elapsed += dt;
+    if (elapsed >= lifetime) {
+      removeFromParent();
+    }
+  }
+}
+
