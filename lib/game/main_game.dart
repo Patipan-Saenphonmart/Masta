@@ -1029,6 +1029,24 @@ class RabbitGame extends FlameGame
           answered = false;
           joystickDirection.setZero();
           _walkStepTimer = 0.0; // ✅ Reset walk timer
+          
+          // ✅ จัดตำแหน่งให้ตัวละครทั้งสองใกล้กันและหันหน้าเข้าหากันตอนต่อสู้
+          Vector2 dir = (e.position - rabbit.position).normalized();
+          if (dir.length == 0) dir = Vector2(1, 0); 
+          e.position = rabbit.position + dir * 65; // ถอยระยะห่างออกนิดนึงให้อยู่ที่ 65px
+          
+          // ให้ศัตรูหันหน้าหากระต่าย
+          e.faceDirection(-dir.x);
+          
+          // ให้กระต่ายหันหน้าหาศัตรู
+          if (dir.x > 0) {
+            rabbit.setState(RabbitState.idleRight);
+            lastDirection = Vector2(1, 0);
+          } else {
+            rabbit.setState(RabbitState.idleLeft);
+            lastDirection = Vector2(-1, 0);
+          }
+
           // ✅ ใช้ BattleOverlay แทน QuestionOverlay
           AudioManager()
               .playBgm(AudioManager.bgmBattle); // ✅ เปลี่ยน BGM เป็นเพลงบัตเทิล

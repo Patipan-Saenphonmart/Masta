@@ -52,6 +52,10 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
   final int _hitFrames = 4;
   bool _isDead = false;
 
+  bool isAttacking = false;
+  double _attackElapsed = 0.0;
+  final double _attackDuration = 8 * 0.06; // 8 frames * 0.06 step time
+
   // ✅ 1. กำหนดขนาดตัวละครในเกมให้คงที่ (Character Size)
   static final Vector2 characterSize = Vector2.all(100.0);
 
@@ -147,6 +151,27 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
           row: 2, stepTime: GameData.deadStepTime, from: 0, to: deadCount - 1, loop: false),
       RabbitState.deadUp: deadSheet.createAnimation(
           row: 3, stepTime: GameData.deadStepTime, from: 0, to: deadCount - 1, loop: false),
+          
+      // Attack Animations
+      RabbitState.attackDown: attackSheet.createAnimation(
+          row: 0, stepTime: 0.06, from: 0, to: 7, loop: false),
+      RabbitState.attackLeft: attackSheet.createAnimation(
+          row: 1, stepTime: 0.06, from: 0, to: 7, loop: false),
+      RabbitState.attackRight: attackSheet.createAnimation(
+          row: 2, stepTime: 0.06, from: 0, to: 7, loop: false),
+      RabbitState.attackUp: attackSheet.createAnimation(
+          row: 3, stepTime: 0.06, from: 0, to: 7, loop: false),
+
+      // Run Attack Animations
+      RabbitState.runAttackDown: runattackSheet.createAnimation(
+          row: 0, stepTime: 0.06, from: 0, to: 7, loop: false),
+      RabbitState.runAttackLeft: runattackSheet.createAnimation(
+          row: 1, stepTime: 0.06, from: 0, to: 7, loop: false),
+      RabbitState.runAttackRight: runattackSheet.createAnimation(
+          row: 2, stepTime: 0.06, from: 0, to: 7, loop: false),
+      RabbitState.runAttackUp: runattackSheet.createAnimation(
+          row: 3, stepTime: 0.06, from: 0, to: 7, loop: false),
+
       // ใช้ dead sprite เป็น placeholder (จะหมุน 90 องศาใน setSleeping)
       RabbitState.sleeping: deadSheet.createAnimation(
           row: 0, stepTime: 0.8, from: 0, to: 1, loop: true),
@@ -155,7 +180,7 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
 
   // ✅ เพิ่ม logic การเปลี่ยน state สำหรับ 4 ทิศทาง ตึงๆ
   void updateAnimationState() {
-    if (_isHitPlaying || _isDead || current == RabbitState.sleeping) return;
+    if (_isHitPlaying || _isDead || isAttacking || current == RabbitState.sleeping) return;
 
     // Determine Run State based on velocity
     if (velocity.x > 0) {
@@ -208,12 +233,43 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
       position += velocity.normalized() * moveSpeed * dt;
     }
 
+    if (isAttacking) {
+      _attackElapsed += dt;
+      if (_attackElapsed >= _attackDuration) {
+        isAttacking = false;
+        // กลับไปที่ท่าเดิมแบบชั่วคราว แล้วให้ _updatePlayer ทำงานต่อ
+        if (current == RabbitState.attackRight || current == RabbitState.runAttackRight) current = RabbitState.idleRight;
+        else if (current == RabbitState.attackLeft || current == RabbitState.runAttackLeft) current = RabbitState.idleLeft;
+        else if (current == RabbitState.attackUp || current == RabbitState.runAttackUp) current = RabbitState.idleUp;
+        else current = RabbitState.idleDown;
+      }
+    }
+
     if (_isHitPlaying) {
       _hitElapsed += dt;
       if (_hitElapsed >= _hitStepTime * _hitFrames) {
         _isHitPlaying = false;
         setState(RabbitState.idleDown);
       }
+    }
+  }
+
+  void playAttack() {
+    if (_isDead || _isHitPlaying || isAttacking || current == RabbitState.sleeping) return;
+    
+    isAttacking = true;
+    _attackElapsed = 0.0;
+    
+    bool isRunning = velocity.length > 0.01;
+    
+    if (current == RabbitState.idleRight || current == RabbitState.runRight) {
+      current = isRunning ? RabbitState.runAttackRight : RabbitState.attackRight;
+    } else if (current == RabbitState.idleLeft || current == RabbitState.runLeft) {
+      current = isRunning ? RabbitState.runAttackLeft : RabbitState.attackLeft;
+    } else if (current == RabbitState.idleUp || current == RabbitState.runUp) {
+      current = isRunning ? RabbitState.runAttackUp : RabbitState.attackUp;
+    } else {
+      current = isRunning ? RabbitState.runAttackDown : RabbitState.attackDown;
     }
   }
 
@@ -227,6 +283,7 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
   void reset() {
     _isDead = false;
     _isHitPlaying = false;
+    isAttacking = false;
     velocity = Vector2.zero();
     current = RabbitState.idleDown;
   }

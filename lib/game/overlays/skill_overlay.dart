@@ -328,20 +328,59 @@ class _SkillOverlayState extends State<SkillOverlay>
         Positioned(
           right: 24,
           bottom: 40,
-          child: Column(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (GameData.isSkillEquipped('fireball'))
-                _buildSkillButton('fireball', 'ไฟ', Icons.whatshot, Colors.orange),
+              // ✅ ปุ่มโจมตี (ใหญ่พิเศษ ไว้ซ้ายของสกิล)
+              GestureDetector(
+                onTap: () {
+                  widget.game.rabbit.playAttack();
+                },
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  margin: const EdgeInsets.only(right: 16, bottom: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.redAccent.shade700,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 6,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                    gradient: LinearGradient(
+                      colors: [Colors.red.shade400, Colors.red.shade900],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.sports_martial_arts, color: Colors.white, size: 42),
+                  ),
+                ),
+              ),
 
-              if (GameData.isSkillEquipped('heal'))
-                _buildSkillButton('heal', 'ฮีล', Icons.favorite, Colors.pinkAccent),
+              // สกิลอื่นๆ
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (GameData.isSkillEquipped('fireball'))
+                    _buildSkillButton('fireball', 'ไฟ', Icons.whatshot, Colors.orange),
 
-              if (GameData.isSkillEquipped('dash'))
-                _buildSkillButton('dash', 'พุ่ง', Icons.run_circle, Colors.blueAccent),
+                  if (GameData.isSkillEquipped('heal'))
+                    _buildSkillButton('heal', 'ฮีล', Icons.favorite, Colors.pinkAccent),
 
-              if (GameData.isSkillEquipped('ice_blast'))
-                _buildSkillButton('ice_blast', 'น้ำแข็ง', Icons.ac_unit, Colors.cyan),
+                  if (GameData.isSkillEquipped('dash'))
+                    _buildSkillButton('dash', 'พุ่ง', Icons.run_circle, Colors.blueAccent),
+
+                  if (GameData.isSkillEquipped('ice_blast'))
+                    _buildSkillButton('ice_blast', 'น้ำแข็ง', Icons.ac_unit, Colors.cyan),
+                ],
+              ),
             ],
           ),
         ),

@@ -621,6 +621,8 @@ class _BattleOverlayState extends State<BattleOverlay>
           ElevatedButton.icon(
             onPressed: () {
               final result = engine.processPhysicalAttack();
+              widget.game.rabbit.playAttack(); // เล่นท่าโจมตี
+              
               setState(() {
                 battleMessage = result['message'];
                 if (result['success'] == true) {
