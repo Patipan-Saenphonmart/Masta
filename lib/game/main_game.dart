@@ -931,63 +931,21 @@ class RabbitGame extends FlameGame
 
     // แปลงกลับเป็นพิกัดจริงบนหน้าจอ
     return pathCells
-        .map((p) => Vector2(p.x * gridSize.toDouble() + (gridSize / 2),
-            p.y * gridSize.toDouble() + (gridSize / 2)))
-        .toList();
-  }
+        .map((p) => Vector2(p.x * gridSize.toDouble(        // 1. ระยะที่ศัตรูจะ "เริ่มง้างตี"
+        double attackTriggerRange = 40.0; 
+        double distanceToPlayer = rabbit.position.distanceTo(e.position);
 
-  void _updateEnemies(double dt) {
-    bool hasChasingEnemy = false;
-    for (final e in world.children.whereType<Enemy>()) {
-      if (e.isMounted && e.alive) {
-        if (freezeTimer > 0) continue;
-
-        final distance = rabbit.position.distanceTo(e.position);
-        Vector2 moveDir = Vector2.zero();
-
-        e.pathRecalculateTimer -= dt;
-
-        if (distance < enemyChaseRange) {
-          hasChasingEnemy = true;
-          // รีแคลคิวเลท Path ทุกๆ 0.5 วินาทีเพื่อไม่ให้หน่วงเครื่อง
-          if (e.pathRecalculateTimer <= 0) {
-            e.currentPath = findPathToPlayer(e.position);
-            e.pathRecalculateTimer = 0.5;
-          }
-
-          if (e.currentPath.isNotEmpty) {
-            // เล็งเป้าที่ waypoint ปัจจุบัน
-            final waypoint = e.currentPath.first;
-            if (e.position.distanceTo(waypoint) < 5.0) {
-              assert(() {
-                debugPrint('Enemy Reached Waypoint');
-                return true;
-              }());
-              e.currentPath.removeAt(0);
-              if (e.currentPath.isNotEmpty) {
-                moveDir = (e.currentPath.first - e.position).normalized();
-              }
-            } else {
-              moveDir = (waypoint - e.position).normalized();
-            }
-          } else {
-            // ถ้าไม่เจอทางเดิน (ถูกขัง) เข้าถึงไม่ได้ ลองเดินตรงไปมั่วๆ
-            moveDir = (rabbit.position - e.position).normalized();
-          }
-
-          if (moveDir.length > 0.01) {
-            e.setState(EnemyState.run);
-          } else {
-            e.setState(EnemyState.idle);
-          }
-        } else {
-          e.setState(EnemyState.idle);
-          e.currentPath.clear();
-        }
-
-        e.faceDirection(moveDir.x);
-
-        // --- Enemy Sliding Collision (เช็คกำแพงเฉพาะเท้าแบบ 2D Top-Down) ---
+        // ถ้าผู้เล่นอยู่ในระยะ และศัตรูไม่ได้กำลังโจมตีอยู่ ให้เริ่มการโจมตี
+        if (distanceToPlayer <= attackTriggerRange && e.current != EnemyState.attack) {
+          Vector2 dirToPlayer = (rabbit.position - e.position).normalized();
+          e.attackTargetDir = dirToPlayer;
+          e.faceDirection(dirToPlayer.x);
+          
+          // เล่นแอนิเมชันโจมตี
+          e.playAttack();
+          // ✅ ดาเมจและการเช็ค Hitbox ตอนนี้ถูกย้ายไปทำแบบต่อเนื่อง (Continuous) ใน Enemy.update() เรียบร้อยแล้ว!
+          // ทำให้ Hitbox ขยับตามตัวละครตลอดเวลาตามที่คุณต้องการ
+        }��าะเท้าแบบ 2D Top-Down) ---
         final double enemyHitW = 20.0;
         final double enemyHitH = 10.0;
         final double enemyOffsetY = 10.0; // ขยับจุดเช็คชนลงมาที่เท้า
