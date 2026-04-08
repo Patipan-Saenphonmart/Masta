@@ -213,7 +213,7 @@ class _BattleOverlayState extends State<BattleOverlay>
       GameData.recordQuestion(
           currentQuestion!, widget.enemy.strongSubject, correct);
       if (correct) {
-        GameData.recordQuestLogEntry(currentQuestion!, choice);
+        GameData.recordQuestLogEntry(currentQuestion!, choice, subject: widget.enemy.strongSubject);
       }
     }
     _showPhase1Result(correct);
@@ -221,9 +221,9 @@ class _BattleOverlayState extends State<BattleOverlay>
 
   void _showPhase1Result(bool correct) {
     if (correct) {
-      String msg = 'ถูกต้อง! โจมตี -${lastResult!.finalDamage} HP';
+      String msg = 'ถูกต้อง! โจมตี ${lastResult!.finalDamage} ดาเมจ';
       if (lastResult!.isCounter) {
-        msg = '⚡ Counter Attack! -${lastResult!.finalDamage} HP!';
+        msg = '⚡ Counter Attack! ${lastResult!.finalDamage} ดาเมจ!';
       }
       setState(() {
         battleMessage = msg;
