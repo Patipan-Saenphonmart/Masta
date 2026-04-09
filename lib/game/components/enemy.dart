@@ -1,12 +1,13 @@
 import 'dart:math';
 import 'package:flame/components.dart';
+import 'package:flame/sprite.dart';
 import 'package:flame/collisions.dart';
 import 'package:flutter/material.dart';
 import '../main_game.dart';
+import '../../data/game_data.dart';
+import 'player.dart';
 
-enum EnemyState { idle, walk, run, hit, dead }
-
-class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
+class Enemy extends SpriteAnimationGroupComponent<RabbitState> with HasGameRef {
   // --- Stats ---
   int maxHp = 50;
   int hp = 50;
@@ -25,16 +26,34 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
 
   // --- Flags ---
   bool alive = true;
+  bool hasShield = true; // ✅ Enemy starts with a shield
+
   bool _isHitPlaying = false;
   double _hitElapsed = 0.0;
   final double _hitStepTime = 0.12;
   final int _hitFrames = 4;
+
+  bool _isAttackPlaying = false;
+  double _attackElapsed = 0.0;
+  final double _attackStepTime = 0.15;
+  final int _attackFrames = 6;
+
+  // ✅ เพิ่มตัวแปรสำหรับระบบต่อสู้จังหวะตี
+  bool hasDealtDamageThisAttack = false;
+  Vector2 attackTargetDir = Vector2.zero();
+  double attackCooldownTimer = 0.0; // ✅ คูลดาวน์การโจมตี
+
+  double get attackElapsed => _attackElapsed;
+  double get attackStepTime => _attackStepTime;
+  int get attackFrames => _attackFrames;
+  bool get isAttacking => _isAttackPlaying;
 
   // --- Pathfinding ---
   List<Vector2> currentPath = [];
   double pathRecalculateTimer = 0.0;
 
   Vector2 velocity = Vector2.zero();
+  Vector2 lastDirection = Vector2(0, 1);
 
   static final Random _rng = Random();
 
@@ -50,7 +69,7 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
           position: position ?? Vector2.zero(),
           size: Vector2.all(64), // ✅ ปรับขนาดเป็น 64 ตามเฟรม
           anchor: Anchor.center,
-          current: EnemyState.idle,
+          current: RabbitState.idleDown,
         );
 
   /// สร้าง proficiency map เริ่มต้นจากธาตุ
@@ -109,71 +128,54 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
     add(hpBg);
     add(hpBar);
 
-    // 3. ✅ โหลดภาพและ Animation ตามธาตุมอนสเตอร์ (64x64 Frames)
-    String prefix = 'battle_enemy_$element';
-    
-    // ✅ จัดการเรื่องชื่อไฟล์ (อาคาน่าและไวต้าใช้ _idle แต่พ่นไฟใช้ชื่อหลักเลย)
-    String idleFile = element == 'ignis' || element == 'nexus' ? '$prefix.png' : '${prefix}_idle.png';
-    String walkFile = '${prefix}_walk.png';
-    String hitFile = '${prefix}_hit.png';
-    String deadFile = '${prefix}_dead.png';
+    // 3. ✅ ชั่วคราว: โหลดภาพผู้เล่น 4 ทิศทางมาใช้ทดสอบ
+    final idleImage = await gameRef.images.load(GameData.playerIdleSprite);
+    final runImage = await gameRef.images.load(GameData.playerRunSprite);
+    final hitImage = await gameRef.images.load(GameData.playerHitSprite);
+    final deadImage = await gameRef.images.load(GameData.playerDeadSprite);
+    final attackImage = await gameRef.images.load(GameData.playerAttackSprite);
 
-    final idleImage = await gameRef.images.load(idleFile);
-    final walkImage = await gameRef.images.load(walkFile);
-    final hitImage = await gameRef.images.load(hitFile);
-    final deadImage = await gameRef.images.load(deadFile);
+    final frameSize = Vector2.all(GameData.spriteFrameSize);
+    final idleSheet = SpriteSheet(image: idleImage, srcSize: frameSize);
+    final runSheet = SpriteSheet(image: runImage, srcSize: frameSize);
+    final hitSheet = SpriteSheet(image: hitImage, srcSize: frameSize);
+    final deadSheet = SpriteSheet(image: deadImage, srcSize: frameSize);
+    final attackSheet = SpriteSheet(image: attackImage, srcSize: frameSize);
 
-    // การกำหนดจำนวนเฟรมต่อธาตุ (อิงจากขนาดภาพที่ตรวจพบ 320=5f, 512=8f, 384=6f)
-    int idleFrames = 5;
-    int walkFrames = 8;
-    int hitFrames = 5;
-    int deadFrames = 6;
-
-    final idleAnim = SpriteAnimation.fromFrameData(
-      idleImage,
-      SpriteAnimationData.sequenced(
-        amount: idleFrames,
-        stepTime: 0.3,
-        textureSize: Vector2(64, 64),
-      ),
-    );
-    
-    final walkAnim = SpriteAnimation.fromFrameData(
-      walkImage,
-      SpriteAnimationData.sequenced(
-        amount: walkFrames,
-        stepTime: 0.15,
-        textureSize: Vector2(64, 64),
-      ),
-    );
-
-    final hitAnim = SpriteAnimation.fromFrameData(
-      hitImage,
-      SpriteAnimationData.sequenced(
-        amount: hitFrames,
-        stepTime: _hitStepTime,
-        textureSize: Vector2(64, 64),
-        loop: false,
-      ),
-    );
-
-    final deadAnim = SpriteAnimation.fromFrameData(
-      deadImage,
-      SpriteAnimationData.sequenced(
-        amount: deadFrames,
-        stepTime: 0.15,
-        textureSize: Vector2(64, 64),
-        loop: false,
-      ),
-    );
+    final idleCount = GameData.idleFrameCount;
+    final idleUpCount = GameData.idleUpFrameCount;
+    final runCount = GameData.runFrameCount;
+    final hitCount = GameData.hitFrameCount;
+    final deadCount = GameData.deadFrameCount;
 
     animations = {
-      EnemyState.idle: idleAnim,
-      EnemyState.walk: walkAnim,
-      EnemyState.run: walkAnim, // Overwatch run ใช้ walk เหมือนกัน
-      EnemyState.hit: hitAnim,
-      EnemyState.dead: deadAnim,
+      RabbitState.idleDown: idleSheet.createAnimation(row: 0, stepTime: GameData.idleStepTime, from: 0, to: idleCount - 1),
+      RabbitState.idleLeft: idleSheet.createAnimation(row: 1, stepTime: GameData.idleStepTime, from: 0, to: idleCount - 1),
+      RabbitState.idleRight: idleSheet.createAnimation(row: 2, stepTime: GameData.idleStepTime, from: 0, to: idleCount - 1),
+      RabbitState.idleUp: idleSheet.createAnimation(row: 3, stepTime: GameData.idleStepTime, from: 0, to: idleUpCount - 1),
+
+      RabbitState.runDown: runSheet.createAnimation(row: 0, stepTime: GameData.runStepTime, from: 0, to: runCount - 1),
+      RabbitState.runLeft: runSheet.createAnimation(row: 1, stepTime: GameData.runStepTime, from: 0, to: runCount - 1),
+      RabbitState.runRight: runSheet.createAnimation(row: 2, stepTime: GameData.runStepTime, from: 0, to: runCount - 1),
+      RabbitState.runUp: runSheet.createAnimation(row: 3, stepTime: GameData.runStepTime, from: 0, to: runCount - 1),
+
+      RabbitState.hitDown: hitSheet.createAnimation(row: 0, stepTime: GameData.hitStepTime, from: 0, to: hitCount - 1, loop: false),
+      RabbitState.hitLeft: hitSheet.createAnimation(row: 1, stepTime: GameData.hitStepTime, from: 0, to: hitCount - 1, loop: false),
+      RabbitState.hitRight: hitSheet.createAnimation(row: 2, stepTime: GameData.hitStepTime, from: 0, to: hitCount - 1, loop: false),
+      RabbitState.hitUp: hitSheet.createAnimation(row: 3, stepTime: GameData.hitStepTime, from: 0, to: hitCount - 1, loop: false),
+
+      RabbitState.deadDown: deadSheet.createAnimation(row: 0, stepTime: GameData.deadStepTime, from: 0, to: deadCount - 1, loop: false),
+      RabbitState.deadLeft: deadSheet.createAnimation(row: 1, stepTime: GameData.deadStepTime, from: 0, to: deadCount - 1, loop: false),
+      RabbitState.deadRight: deadSheet.createAnimation(row: 2, stepTime: GameData.deadStepTime, from: 0, to: deadCount - 1, loop: false),
+      RabbitState.deadUp: deadSheet.createAnimation(row: 3, stepTime: GameData.deadStepTime, from: 0, to: deadCount - 1, loop: false),
+
+      RabbitState.attackDown: attackSheet.createAnimation(row: 0, stepTime: GameData.attackStepTime, from: 0, to: GameData.attackFrameCount - 1, loop: false),
+      RabbitState.attackLeft: attackSheet.createAnimation(row: 1, stepTime: GameData.attackStepTime, from: 0, to: GameData.attackFrameCount - 1, loop: false),
+      RabbitState.attackRight: attackSheet.createAnimation(row: 2, stepTime: GameData.attackStepTime, from: 0, to: GameData.attackFrameCount - 1, loop: false),
+      RabbitState.attackUp: attackSheet.createAnimation(row: 3, stepTime: GameData.attackStepTime, from: 0, to: GameData.attackFrameCount - 1, loop: false),
     };
+    
+    current = RabbitState.idleDown;
   }
 
   // ✅ ฟังก์ชันโดนดาเมจ (ใช้แทนการเรียก playHit ตรงๆ)
@@ -201,39 +203,83 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
     }
   }
 
-  void setState(EnemyState state) {
-    if (current == state) return;
+  void updateAnimationState() {
+    if (!alive) return;
     
-    if (state == EnemyState.hit) {
-      _isHitPlaying = true;
-      _hitElapsed = 0.0;
-    } else if (state == EnemyState.dead) {
-      alive = false;
-      // ซ่อนหลอดเลือดเมื่อตาย
-      hpBar.removeFromParent();
-      hpBg.removeFromParent();
+    if (_isHitPlaying || _isAttackPlaying) {
+      // ให้มันแช่ท่าเดิมตอนตีหรือถูกตีจนเพลย์จบ
+      return; 
     }
 
-    current = state;
-  }
-
-  void faceDirection(double dirX) {
-    if (dirX < 0) {
-      scale.x = -scale.x.abs();
-    } else if (dirX > 0) {
-      scale.x = scale.x.abs();
+    if (velocity.length > 0.01) {
+      if (velocity.x.abs() >= velocity.y.abs()) {
+        if (velocity.x > 0) {
+          current = RabbitState.runRight;
+        } else {
+          current = RabbitState.runLeft;
+        }
+      } else {
+        if (velocity.y > 0) {
+          current = RabbitState.runDown;
+        } else {
+          current = RabbitState.runUp;
+        }
+      }
+      lastDirection = velocity.normalized();
+    } else {
+      if (lastDirection.x.abs() >= lastDirection.y.abs()) {
+        if (lastDirection.x > 0) {
+          current = RabbitState.idleRight;
+        } else {
+          current = RabbitState.idleLeft;
+        }
+      } else {
+        if (lastDirection.y > 0) {
+          current = RabbitState.idleDown;
+        } else {
+          current = RabbitState.idleUp;
+        }
+      }
     }
   }
 
   void playHit() {
-    if (!_isHitPlaying && alive) {
-      setState(EnemyState.hit);
+    if (!_isHitPlaying && alive && !_isAttackPlaying) {
+      _isHitPlaying = true;
+      _hitElapsed = 0.0;
+      if (lastDirection.x.abs() >= lastDirection.y.abs()) {
+        current = lastDirection.x > 0 ? RabbitState.hitRight : RabbitState.hitLeft;
+      } else {
+        current = lastDirection.y > 0 ? RabbitState.hitDown : RabbitState.hitUp;
+      }
+    }
+  }
+
+  void playAttack() {
+    if (!_isAttackPlaying && alive && !_isHitPlaying) {
+      _isAttackPlaying = true;
+      _attackElapsed = 0.0;
+      if (attackTargetDir.x.abs() >= attackTargetDir.y.abs()) {
+        current = attackTargetDir.x > 0 ? RabbitState.attackRight : RabbitState.attackLeft;
+      } else {
+        current = attackTargetDir.y > 0 ? RabbitState.attackDown : RabbitState.attackUp;
+      }
     }
   }
 
   void die() {
     if (!alive) return;
-    setState(EnemyState.dead);
+    alive = false;
+    
+    // ซ่อนหลอดเลือดเมื่อตาย
+    hpBar.removeFromParent();
+    hpBg.removeFromParent();
+
+    if (lastDirection.x.abs() >= lastDirection.y.abs()) {
+      current = lastDirection.x > 0 ? RabbitState.deadRight : RabbitState.deadLeft;
+    } else {
+      current = lastDirection.y > 0 ? RabbitState.deadDown : RabbitState.deadUp;
+    }
     
     // ✅ แจ้งเตือนเมนเกมเพื่อดรอปของและเริ่มคิวเกิดใหม่
     if (gameRef is RabbitGame) {
@@ -247,20 +293,36 @@ class Enemy extends SpriteAnimationGroupComponent<EnemyState> with HasGameRef {
 
   @override
   void update(double dt) {
+    // ✅ หยุดแอนิเมชันศัตรูทันที ถ้าโลกถูกแช่แข็ง (The World)
+    if (gameRef is RabbitGame && (gameRef as RabbitGame).isWorldFrozen) {
+      return; 
+    }
     super.update(dt);
 
     if (!alive) return;
 
-    position += velocity * dt;
+    if (attackCooldownTimer > 0) {
+      attackCooldownTimer -= dt;
+    }
 
     if (_isHitPlaying) {
       _hitElapsed += dt;
-      if (_hitElapsed >= _hitStepTime * _hitFrames) {
+      if (_hitElapsed >= GameData.hitStepTime * GameData.hitFrameCount) {
         _isHitPlaying = false;
-        if (alive && current == EnemyState.hit) {
-          setState(EnemyState.idle);
-        }
+        _hitElapsed = 0.0;
       }
     }
+
+    if (_isAttackPlaying) {
+      _attackElapsed += dt;
+      if (_attackElapsed >= GameData.attackStepTime * GameData.attackFrameCount) {
+        _isAttackPlaying = false;
+        _attackElapsed = 0.0;
+        attackCooldownTimer = 2.0; // รีเซ็ตคูลดาวน์ใหม่หลังจากเล่นอนิเมชันจบเผื่อชัวร์
+        hasDealtDamageThisAttack = false;
+      }
+    }
+
+    updateAnimationState();
   }
 }

@@ -52,9 +52,13 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
   final int _hitFrames = 4;
   bool _isDead = false;
 
-  bool isAttacking = false;
+  // ✅ Attack state
+  bool _isAttacking = false;
   double _attackElapsed = 0.0;
   final double _attackDuration = 8 * 0.06; // 8 frames * 0.06 step time
+
+  // ✅ ทิศทางล่าสุดที่กระต่ายหันไป (Last facing direction)
+  Vector2 lastDirection = Vector2(0, 1);
 
   // ✅ 1. กำหนดขนาดตัวละครในเกมให้คงที่ (Character Size)
   static final Vector2 characterSize = Vector2.all(100.0);
@@ -68,6 +72,7 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
         );
 
   bool get isHitPlaying => _isHitPlaying;
+  bool get isAttacking => _isAttacking;
 
   @override
   Future<void> onLoad() async {
@@ -175,12 +180,42 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
       // ใช้ dead sprite เป็น placeholder (จะหมุน 90 องศาใน setSleeping)
       RabbitState.sleeping: deadSheet.createAnimation(
           row: 0, stepTime: 0.8, from: 0, to: 1, loop: true),
+
+      // ✅ Attack Animations (Sword_attack_with_shadow)
+      RabbitState.attackDown: attackSheet.createAnimation(
+          row: 0, stepTime: GameData.attackStepTime, from: 0, to: GameData.attackFrameCount - 1, loop: false),
+      RabbitState.attackLeft: attackSheet.createAnimation(
+          row: 1, stepTime: GameData.attackStepTime, from: 0, to: GameData.attackFrameCount - 1, loop: false),
+      RabbitState.attackRight: attackSheet.createAnimation(
+          row: 2, stepTime: GameData.attackStepTime, from: 0, to: GameData.attackFrameCount - 1, loop: false),
+      RabbitState.attackUp: attackSheet.createAnimation(
+          row: 3, stepTime: GameData.attackStepTime, from: 0, to: GameData.attackFrameCount - 1, loop: false),
+
+      // ✅ Run Attack Animations (Sword_Run_Attack_with_shadow)
+      RabbitState.runAttackDown: runattackSheet.createAnimation(
+          row: 0, stepTime: GameData.runAttackStepTime, from: 0, to: GameData.runAttackFrameCount - 1, loop: false),
+      RabbitState.runAttackLeft: runattackSheet.createAnimation(
+          row: 1, stepTime: GameData.runAttackStepTime, from: 0, to: GameData.runAttackFrameCount - 1, loop: false),
+      RabbitState.runAttackRight: runattackSheet.createAnimation(
+          row: 2, stepTime: GameData.runAttackStepTime, from: 0, to: GameData.runAttackFrameCount - 1, loop: false),
+      RabbitState.runAttackUp: runattackSheet.createAnimation(
+          row: 3, stepTime: GameData.runAttackStepTime, from: 0, to: GameData.runAttackFrameCount - 1, loop: false),
+
+      // ✅ Walk Attack Animations (Sword_Walk_Attack_with_shadow)
+      RabbitState.walkAttackDown: walkattackSheet.createAnimation(
+          row: 0, stepTime: GameData.runAttackStepTime, from: 0, to: GameData.walkAttackFrameCount - 1, loop: false),
+      RabbitState.walkAttackLeft: walkattackSheet.createAnimation(
+          row: 1, stepTime: GameData.runAttackStepTime, from: 0, to: GameData.walkAttackFrameCount - 1, loop: false),
+      RabbitState.walkAttackRight: walkattackSheet.createAnimation(
+          row: 2, stepTime: GameData.runAttackStepTime, from: 0, to: GameData.walkAttackFrameCount - 1, loop: false),
+      RabbitState.walkAttackUp: walkattackSheet.createAnimation(
+          row: 3, stepTime: GameData.runAttackStepTime, from: 0, to: GameData.walkAttackFrameCount - 1, loop: false),
     };
   }
 
   // ✅ เพิ่ม logic การเปลี่ยน state สำหรับ 4 ทิศทาง ตึงๆ
   void updateAnimationState() {
-    if (_isHitPlaying || _isDead || isAttacking || current == RabbitState.sleeping) return;
+    if (_isHitPlaying || _isDead || _isAttacking || current == RabbitState.sleeping) return;
 
     // Determine Run State based on velocity
     if (velocity.x > 0) {
@@ -229,21 +264,12 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
 
     if (_isDead) return;
 
-    if (!_isHitPlaying && velocity.length > 0.01) {
+    if (!_isHitPlaying && !_isAttacking && velocity.length > 0.01) {
+      lastDirection = velocity.normalized();
       position += velocity.normalized() * moveSpeed * dt;
     }
 
-    if (isAttacking) {
-      _attackElapsed += dt;
-      if (_attackElapsed >= _attackDuration) {
-        isAttacking = false;
-        // กลับไปที่ท่าเดิมแบบชั่วคราว แล้วให้ _updatePlayer ทำงานต่อ
-        if (current == RabbitState.attackRight || current == RabbitState.runAttackRight) current = RabbitState.idleRight;
-        else if (current == RabbitState.attackLeft || current == RabbitState.runAttackLeft) current = RabbitState.idleLeft;
-        else if (current == RabbitState.attackUp || current == RabbitState.runAttackUp) current = RabbitState.idleUp;
-        else current = RabbitState.idleDown;
-      }
-    }
+
 
     if (_isHitPlaying) {
       _hitElapsed += dt;
@@ -252,26 +278,28 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
         setState(RabbitState.idleDown);
       }
     }
-  }
 
-  void playAttack() {
-    if (_isDead || _isHitPlaying || isAttacking || current == RabbitState.sleeping) return;
-    
-    isAttacking = true;
-    _attackElapsed = 0.0;
-    
-    bool isRunning = velocity.length > 0.01;
-    
-    if (current == RabbitState.idleRight || current == RabbitState.runRight) {
-      current = isRunning ? RabbitState.runAttackRight : RabbitState.attackRight;
-    } else if (current == RabbitState.idleLeft || current == RabbitState.runLeft) {
-      current = isRunning ? RabbitState.runAttackLeft : RabbitState.attackLeft;
-    } else if (current == RabbitState.idleUp || current == RabbitState.runUp) {
-      current = isRunning ? RabbitState.runAttackUp : RabbitState.attackUp;
-    } else {
-      current = isRunning ? RabbitState.runAttackDown : RabbitState.attackDown;
+    // ✅ Attack timer: กลับ idle เมื่อเล่นท่าจบ
+    if (_isAttacking) {
+      _attackElapsed += dt;
+      final attackDuration = GameData.attackStepTime * GameData.attackFrameCount;
+      if (_attackElapsed >= attackDuration) {
+        _isAttacking = false;
+        _attackElapsed = 0.0;
+        // กลับไปท่า idle ตามทิศทาง
+        if (current == RabbitState.attackRight || current == RabbitState.runAttackRight || current == RabbitState.walkAttackRight) {
+          current = RabbitState.idleRight;
+        } else if (current == RabbitState.attackLeft || current == RabbitState.runAttackLeft || current == RabbitState.walkAttackLeft) {
+          current = RabbitState.idleLeft;
+        } else if (current == RabbitState.attackUp || current == RabbitState.runAttackUp || current == RabbitState.walkAttackUp) {
+          current = RabbitState.idleUp;
+        } else {
+          current = RabbitState.idleDown;
+        }
+      }
     }
   }
+
 
   void playHit() {
     if (_isDead) return;
@@ -279,11 +307,63 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
     // ไม่ต้องใช้ Future.delayed เพื่อคืนค่า เพราะทำใน update แล้ว (แม่นยำกว่า)
   }
 
+  // ✅ ฟังก์ชันเล่นท่าโจมตี (เลือกทิศทางตาม state ปัจจุบัน)
+  void playAttack({bool isRunning = false}) {
+    if (_isDead || _isHitPlaying || _isAttacking) return;
+    _isAttacking = true;
+    _attackElapsed = 0.0;
+
+    // เลือกท่าโจมตีตามทิศทางปัจจุบัน
+    if (isRunning) {
+      // ใช้ Run Attack
+      switch (current) {
+        case RabbitState.runRight:
+        case RabbitState.idleRight:
+        case RabbitState.attackRight:
+          current = RabbitState.runAttackRight;
+          break;
+        case RabbitState.runLeft:
+        case RabbitState.idleLeft:
+        case RabbitState.attackLeft:
+          current = RabbitState.runAttackLeft;
+          break;
+        case RabbitState.runUp:
+        case RabbitState.idleUp:
+        case RabbitState.attackUp:
+          current = RabbitState.runAttackUp;
+          break;
+        default:
+          current = RabbitState.runAttackDown;
+      }
+    } else {
+      // ใช้ Standing Attack
+      switch (current) {
+        case RabbitState.runRight:
+        case RabbitState.idleRight:
+        case RabbitState.runAttackRight:
+          current = RabbitState.attackRight;
+          break;
+        case RabbitState.runLeft:
+        case RabbitState.idleLeft:
+        case RabbitState.runAttackLeft:
+          current = RabbitState.attackLeft;
+          break;
+        case RabbitState.runUp:
+        case RabbitState.idleUp:
+        case RabbitState.runAttackUp:
+          current = RabbitState.attackUp;
+          break;
+        default:
+          current = RabbitState.attackDown;
+      }
+    }
+  }
+
   // ✅ ฟังก์ชันสำหรับชุบชีวิต
   void reset() {
     _isDead = false;
     _isHitPlaying = false;
-    isAttacking = false;
+    _isAttacking = false;
     velocity = Vector2.zero();
     current = RabbitState.idleDown;
   }

@@ -41,12 +41,17 @@ class GameData {
   static int get runFrameCount => 9;
   static int get hitFrameCount => 6;
   static int get deadFrameCount => 8;
+  static int get attackFrameCount => 8;
+  static int get runAttackFrameCount => 8;
+  static int get walkAttackFrameCount => 8;
 
   /// Step time ของแต่ละชุดแอนิเมชัน
   static double get idleStepTime => 0.25;
   static double get runStepTime => 0.1;
   static double get hitStepTime => 0.12;
   static double get deadStepTime => 0.25;
+  static double get attackStepTime => 0.08;
+  static double get runAttackStepTime => 0.08;
 
   /// ชื่อตัวละคร
   static String get playerName =>

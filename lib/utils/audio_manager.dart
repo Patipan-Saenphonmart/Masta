@@ -49,6 +49,7 @@ class AudioManager {
   static const String sfxCorrect = 'audio/sfx/correct-aws.mp3';
   static const String sfxWrong = 'audio/sfx/wrong-aws.mp3';
   static const String sfxLevelUp = 'audio/sfx/level-up.mp3';
+  static const String sfxTimeStop = 'audio/sfx/ving.mp3'; // ✅ "The World" time-stop SFX
 
   // =====================================================================
   // Initialize — เรียกตอนเริ่มแอป

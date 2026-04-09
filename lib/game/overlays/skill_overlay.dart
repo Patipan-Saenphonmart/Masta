@@ -1,6 +1,8 @@
+import 'dart:async' as async_lib;
 import 'package:flutter/material.dart';
 import '../main_game.dart';
 import '../../data/game_data.dart';
+
 
 class SkillOverlay extends StatefulWidget {
   final RabbitGame game;
@@ -25,6 +27,13 @@ class _SkillOverlayState extends State<SkillOverlay>
     'dash': 2.0,
     'ice_blast': 5.0,
   };
+
+  // ✅ Attack & Scan cooldowns
+  double _attackCooldown = 0;
+  static const double _attackMaxCooldown = 0.8;
+  double _scanCooldown = 0;
+  static const double _scanMaxCooldown = 15.0;
+  bool _isScanActive = false;
 
   // Joystick Logic
   void onPanStart(DragStartDetails d) {
@@ -57,6 +66,52 @@ class _SkillOverlayState extends State<SkillOverlay>
     startDrag = null;
 
     widget.game.joystickDirection.setZero();
+  }
+
+  // ✅ Attack button handler
+  void _onAttackTap() {
+    if (_attackCooldown > 0) return;
+    widget.game.attackNearbyEnemy();
+    setState(() {
+      _attackCooldown = _attackMaxCooldown;
+    });
+    _startActionCooldownTick('attack');
+  }
+
+  // ✅ Scan ("The World") button handler
+  void _onScanTap() {
+    if (_scanCooldown > 0 || _isScanActive) return;
+    setState(() {
+      _isScanActive = true;
+      _scanCooldown = _scanMaxCooldown;
+    });
+    widget.game.scanWorld();
+    // Scan lasts 3 seconds, then unfreeze
+    async_lib.Future.delayed(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      widget.game.endScanWorld();
+      setState(() {
+        _isScanActive = false;
+      });
+    });
+    _startActionCooldownTick('scan');
+  }
+
+  void _startActionCooldownTick(String action) {
+    async_lib.Future.delayed(const Duration(milliseconds: 100), () {
+      if (!mounted) return;
+      setState(() {
+        if (action == 'attack') {
+          _attackCooldown = (_attackCooldown - 0.1).clamp(0.0, _attackMaxCooldown);
+        } else if (action == 'scan') {
+          _scanCooldown = (_scanCooldown - 0.1).clamp(0.0, _scanMaxCooldown);
+        }
+      });
+      final cd = action == 'attack' ? _attackCooldown : _scanCooldown;
+      if (cd > 0) {
+        _startActionCooldownTick(action);
+      }
+    });
   }
 
   void _onSkillTap(String skillId) {
@@ -328,48 +383,11 @@ class _SkillOverlayState extends State<SkillOverlay>
         Positioned(
           right: 24,
           bottom: 40,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ✅ ปุ่มโจมตี (ใหญ่พิเศษ ไว้ซ้ายของสกิล)
-              GestureDetector(
-                onTap: () {
-                  widget.game.rabbit.playAttack();
-                },
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  margin: const EdgeInsets.only(right: 16, bottom: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent.shade700,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 3),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black45,
-                        blurRadius: 6,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                    gradient: LinearGradient(
-                      colors: [Colors.red.shade400, Colors.red.shade900],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.sports_martial_arts, color: Colors.white, size: 42),
-                  ),
-                ),
-              ),
-
-              // สกิลอื่นๆ
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (GameData.isSkillEquipped('fireball'))
-                    _buildSkillButton('fireball', 'ไฟ', Icons.whatshot, Colors.orange),
+              if (GameData.isSkillEquipped('fireball'))
+                _buildSkillButton('fireball', 'ไฟ', Icons.whatshot, Colors.orange),
 
                   if (GameData.isSkillEquipped('heal'))
                     _buildSkillButton('heal', 'ฮีล', Icons.favorite, Colors.pinkAccent),
@@ -379,8 +397,173 @@ class _SkillOverlayState extends State<SkillOverlay>
 
                   if (GameData.isSkillEquipped('ice_blast'))
                     _buildSkillButton('ice_blast', 'น้ำแข็ง', Icons.ac_unit, Colors.cyan),
-                ],
+              ],
+            ),
+          ),
+
+        // --- ⚔️ Attack & 🔍 Scan Buttons (ขวาล่างสุด) ---
+        Positioned(
+          right: 16,
+          bottom: 30,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              // 🔍 Scan Button ("The World")
+              _buildActionButton(
+                label: 'สแกน',
+                icon: Icons.radar,
+                color: const Color(0xFF7B1FA2),
+                glowColor: Colors.purpleAccent,
+                cooldown: _scanCooldown,
+                maxCooldown: _scanMaxCooldown,
+                isActive: _isScanActive,
+                onTap: _onScanTap,
+                size: 58,
               ),
+              const SizedBox(width: 14),
+              // ⚔️ Attack Button
+              _buildActionButton(
+                label: 'โจมตี',
+                icon: Icons.sports_martial_arts,
+                color: const Color(0xFFC62828),
+                glowColor: Colors.redAccent,
+                cooldown: _attackCooldown,
+                maxCooldown: _attackMaxCooldown,
+                isActive: false,
+                onTap: _onAttackTap,
+                size: 68,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ✅ Premium Action Button (Attack / Scan) with cooldown
+  Widget _buildActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required Color glowColor,
+    required double cooldown,
+    required double maxCooldown,
+    required bool isActive,
+    required VoidCallback onTap,
+    double size = 64,
+  }) {
+    final isOnCooldown = cooldown > 0;
+    final cdPercent = isOnCooldown ? (cooldown / maxCooldown).clamp(0.0, 1.0) : 0.0;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: (isOnCooldown && !isActive) ? null : onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: size,
+            height: size,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: isActive
+                  ? RadialGradient(
+                      colors: [glowColor.withOpacity(0.9), color],
+                      center: const Alignment(-0.3, -0.3),
+                      radius: 0.9,
+                    )
+                  : RadialGradient(
+                      colors: isOnCooldown
+                          ? [Colors.grey.shade600, Colors.grey.shade800]
+                          : [color.withOpacity(0.9), color.withOpacity(0.7)],
+                      center: const Alignment(-0.3, -0.3),
+                      radius: 0.9,
+                    ),
+              border: Border.all(
+                color: isActive
+                    ? Colors.white
+                    : isOnCooldown
+                        ? Colors.grey.shade500
+                        : Colors.white.withOpacity(0.8),
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: isActive
+                      ? glowColor.withOpacity(0.6)
+                      : isOnCooldown
+                          ? Colors.black26
+                          : color.withOpacity(0.4),
+                  blurRadius: isActive ? 16 : 6,
+                  spreadRadius: isActive ? 2 : 0,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                // Cooldown progress
+                if (isOnCooldown && !isActive)
+                  SizedBox(
+                    width: size - 6,
+                    height: size - 6,
+                    child: CircularProgressIndicator(
+                      value: 1.0 - cdPercent,
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                          color.withOpacity(0.7)),
+                      backgroundColor: Colors.transparent,
+                    ),
+                  ),
+                // Icon
+                Icon(
+                  icon,
+                  color: isOnCooldown && !isActive
+                      ? Colors.white38
+                      : Colors.white,
+                  size: size * 0.45,
+                ),
+                // Cooldown timer text
+                if (isOnCooldown && !isActive && cooldown >= 1)
+                  Positioned(
+                    bottom: 4,
+                    child: Text(
+                      cooldown.toStringAsFixed(0),
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: size * 0.2,
+                        fontWeight: FontWeight.bold,
+                        shadows: const [
+                          Shadow(
+                              color: Colors.black,
+                              offset: Offset(1, 1),
+                              blurRadius: 2),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          isActive ? '⏳' : label,
+          style: TextStyle(
+            color: isActive
+                ? Colors.amberAccent
+                : isOnCooldown
+                    ? Colors.white38
+                    : Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            shadows: const [
+              Shadow(
+                  color: Colors.black54,
+                  offset: Offset(1, 1),
+                  blurRadius: 2),
             ],
           ),
         ),
