@@ -32,7 +32,6 @@ class RabbitGamePage extends StatelessWidget {
   final bool showIntroCutscene; // ✅ เพิ่ม parameter สำหรับ cutscene
   const RabbitGamePage({super.key, this.showIntroCutscene = false});
 
-
   @override
   Widget build(BuildContext context) {
     final game = RabbitGame()
@@ -555,7 +554,8 @@ class RabbitGame extends FlameGame
     final savedPos = await SaveManager.loadPlayerPosition();
     final spawnPos = savedPos != null
         ? Vector2(savedPos['x']!, savedPos['y']!)
-        : Vector2(3678, 2464); // ********************** จุดกระต่ายเกิดใหม่ตั้งแต่เริ่มเกมครั้งแรก **********************
+        : Vector2(3678,
+            2464); // ********************** จุดกระต่ายเกิดใหม่ตั้งแต่เริ่มเกมครั้งแรก **********************
 
     world = World();
     add(world);
@@ -617,12 +617,15 @@ class RabbitGame extends FlameGame
       // ✅ ทำของตกหมดตัว (เทไอเทมลงพื้น)
       _dropAllItems();
 
-      overlays.remove('SkillOverlay');
-      overlays.remove('BagOverlay');
-      overlays.remove('ActionOverlay');
-      overlays.remove('BattleOverlay');
-      overlays.remove('QuestOverlay'); // ✅ ซ่อนหน้าต่างเควสต์
-      overlays.add('GameOverOverlay');
+      // ✅ หน่วงเวลา 2 วินาทีเพื่อให้แอนิเมชันตายเล่นจบก่อนขึ้นหน้าจอ Game Over
+      Future.delayed(const Duration(seconds: 2), () {
+        overlays.remove('SkillOverlay');
+        overlays.remove('BagOverlay');
+        overlays.remove('ActionOverlay');
+        overlays.remove('BattleOverlay');
+        overlays.remove('QuestOverlay'); // ✅ ซ่อนหน้าต่างเควสต์
+        overlays.add('GameOverOverlay');
+      });
       return;
     }
 
@@ -649,7 +652,14 @@ class RabbitGame extends FlameGame
 
       for (final e in world.children.whereType<Enemy>()) {
         if (e.alive && !hitEnemiesThisAttack.contains(e)) {
-          if (attackRect.overlaps(e.toRect())) {
+          // สร้าง Hurtbox ของศัตรูให้ตรงกับรูปร่างสีเขียวเป๊ะๆ (offset X - 7, Y + 5, w 12, h 6)
+          Rect enemyHurtbox = Rect.fromCenter(
+            center: Offset(e.position.x - 7, e.position.y + 5),
+            width: 12.0,
+            height: 6.0,
+          );
+
+          if (attackRect.overlaps(enemyHurtbox)) {
             hitEnemiesThisAttack.add(e);
             if (e.hasShield) {
               showDialog("ศัตรูมีเกราะป้องกัน! ต้องใช้สแกนเพื่อทำลายเกราะก่อน");
@@ -658,7 +668,7 @@ class RabbitGame extends FlameGame
               if (GameData.isEquipped("ดาบสายฟ้า (Thunder Sword)")) {
                 damage += 5;
               }
-              e.takeDamage(damage);
+              e.takeDamage(damage, attackerPos: rabbit.position);
               AudioManager().playSfx(AudioManager.sfxGetHit);
             }
           }
@@ -746,7 +756,7 @@ class RabbitGame extends FlameGame
             0.2126, 0.7152, 0.0722, 0, 0, // R
             0.2126, 0.7152, 0.0722, 0, 0, // G
             0.2126, 0.7152, 0.0722, 0, 0, // B
-            0,      0,      0,      1, 0, // A
+            0, 0, 0, 1, 0, // A
           ]),
       );
       super.render(canvas);
@@ -1035,11 +1045,10 @@ class RabbitGame extends FlameGame
 
         e.pathRecalculateTimer -= dt;
 
-        // ✅ ถ้าศัตรูกำลังโจมตีอยู่ ให้บอทยืนนิ่งฟัน
-        if (e.isAttacking) {
+        // ✅ ถ้าศัตรูกำลังโจมตีอยู่, กำลังเตรียมโจมตี, หรือกำลังโดนตี (Hit) ให้บอทยืนนิ่ง
+        if (e.isAttacking || e.isPreAttacking || e.isHitPlaying) {
           moveDir = Vector2.zero();
-        }
-        else if (distance < enemyChaseRange) {
+        } else if (distance < enemyChaseRange) {
           hasChasingEnemy = true;
           // รีแคลคิวเลท Path ทุกๆ 0.5 วินาทีเพื่อไม่ให้หน่วงเครื่อง
           if (e.pathRecalculateTimer <= 0) {
@@ -1105,28 +1114,62 @@ class RabbitGame extends FlameGame
         if (!hitWallEy) e.position.y = nextEy;
 
         // 1. ระยะที่ศัตรูจะ "เริ่มง้างตี"
-        double attackTriggerRange = 40.0; 
+        double attackTriggerRange = 40.0;
         double distanceToPlayer = rabbit.position.distanceTo(e.position);
 
-        // ถ้าผู้เล่นอยู่ในระยะ และศัตรูไม่ได้กำลังโจมตีอยู่ ให้เริ่มการโจมตี (และหมดคูลดาวน์แล้ว)
-        if (distanceToPlayer <= attackTriggerRange && !e.isAttacking && e.attackCooldownTimer <= 0) {
+        // ถ้าผู้เล่นอยู่ในระยะ และศัตรูไม่ได้กำลังโจมตีหรือเตรียมโจมตี ให้เริ่มเตรียมการโจมตี (ถ้าหมดคูลดาวน์แล้ว)
+        if (distanceToPlayer <= attackTriggerRange &&
+            !e.isAttacking &&
+            !e.isPreAttacking &&
+            e.attackCooldownTimer <= 0) {
           Vector2 dirToPlayer = (rabbit.position - e.position).normalized();
           e.attackTargetDir = dirToPlayer;
-          
-          // เล่นแอนิเมชันโจมตีและตั้งค่าคูลดาวน์
-          e.playAttack();
-          e.hasDealtDamageThisAttack = false; // เซ็ตสถานะว่ายังไม่ได้ทำดาเมจในรอบการโจมตีนี้
-          e.attackCooldownTimer = 2.0; // ✅ ตั้งคูลดาวน์การโจมตีครั้งต่อไป (เช่น 2 วินาที)
+
+          e.isPreAttacking = true;
+          e.preAttackTimer =
+              0.8; // ✅ ระยะเวลาดีเลย์เตือนก่อนโจมตีจริง (0.8 วินาที)
         }
 
-        // 2. เช็คการทำดาเมจ "ระหว่าง" อนิเมชัน (ตรวจจับตลอดช่วงการโจมตี ไม่เช็คแค่ช่วง 95%)
+        // 2. จัดการสถานะการเตรียมโจมตี (ง้างตี) และเตือนผู้เล่นกระพริบ 2 ครั้ง
+        if (e.isPreAttacking) {
+          e.preAttackTimer -= dt;
+
+          Vector2 forwardDir =
+              moveDir.length > 0.01 ? moveDir : e.attackTargetDir;
+          Vector2 enemyAttackCenter = e.position + (forwardDir * 30.0);
+
+          // ช่วงเวลาเตรียมโจมตี 0.8 วิ แบ่งเป็น 4 จังหวะ: โชว์-ซ่อน-โชว์-ซ่อน (กระพริบ 2 ครั้ง)
+          // (0.8 ถึง 0.0 -> ค่า 0 ถึง 4)
+          int phase = ((1.0 - (e.preAttackTimer / 0.8)) * 4).floor();
+          if (phase == 0 || phase == 2) {
+            // แสดง Hitbox กระพริบ (warning) สีส้ม/เหลือง
+            world.add(DebugHitbox(
+              position: enemyAttackCenter,
+              size: Vector2(45.0, 45.0),
+              lifetime: 0.05,
+              isWarning: true, // ✅ บอกว่าเป็นกล่องเตือน
+            ));
+          }
+
+          if (e.preAttackTimer <= 0) {
+            e.isPreAttacking = false;
+            // เล่นแอนิเมชันโจมตี (เริ่มชาร์จ)
+            e.playAttack();
+            e.hasDealtDamageThisAttack = false;
+            // ✅ นำการตั้งค่า Cooldown 2.0 ตรงนี้ออก 
+            // เพราะย้ายไปตั้งค่าตามผลใน enemy.dart แล้ว
+          }
+        }
+
+        // 3. เช็คการทำดาเมจ "ระหว่าง" อนิเมชัน
         if (e.isAttacking && !e.hasDealtDamageThisAttack) {
-          // ไม่ต้องรอให้ถึง 95% ให้เริ่มเช็คหลังจากเริ่มโจมตีสัก 30% ของอนิเมชันขึ้นไป เพื่อให้เกิดความสมจริง
-          double hitTimeStart = (e.attackFrames * e.attackStepTime) * 0.3;
+          // หน่วงเวลาดาเมจเล็กน้อยไปที่ 20% ของอนิเมชันตอนตี (เพื่อให้ท่าทางดูฟาดลงมาก่อน)
+          double totalAttackTime = e.attackFrames * e.attackStepTime;
+          double hitTimeStart = totalAttackTime * 0.2;
 
           if (e.attackElapsed >= hitTimeStart) {
-            // สร้างกล่องโจมตีของศัตรู (ยื่นไปด้านหน้าตามทิศทางที่หันล่าสุด)
-            Vector2 forwardDir = moveDir.length > 0.01 ? moveDir : e.attackTargetDir;
+            Vector2 forwardDir =
+                moveDir.length > 0.01 ? moveDir : e.attackTargetDir;
             Vector2 enemyAttackCenter = e.position + (forwardDir * 30.0);
             Rect enemyAttackRect = Rect.fromCenter(
               center: Offset(enemyAttackCenter.x, enemyAttackCenter.y),
@@ -1134,25 +1177,37 @@ class RabbitGame extends FlameGame
               height: 45.0,
             );
 
-            // ✅ แสดง Hitbox สีแดงของศัตรูเพื่อทดสอบ (วาดชั่วคราว)
+            // ✅ แสดง Hitbox สีแดงของศัตรูเพื่อทดสอบ (วาดชั่วคราวซ้ำให้ติดตา) ตอนโจมตีจริง
             world.add(DebugHitbox(
               position: enemyAttackCenter,
               size: Vector2(45.0, 45.0),
               lifetime: 0.1,
             ));
 
+            // สร้าง Hitbox ของกระต่ายสำหรับรับดาเมจ ให้ตรงกับรูปร่างสีฟ้าเป๊ะๆ (offset Y + 15, w 20, h 10)
+            Rect rabbitHurtbox = Rect.fromCenter(
+              center: Offset(rabbit.position.x, rabbit.position.y + 15),
+              width: 20.0,
+              height: 10.0,
+            );
+
             // เช็คว่ากระต่ายยังอยู่ในกล่องไหม และผู้เล่นไม่ติดคูลดาวน์อมตะ
-            if (collisionCooldown <= 0 && enemyAttackRect.overlaps(rabbit.toRect())) {
+            if (collisionCooldown <= 0 &&
+                enemyAttackRect.overlaps(rabbitHurtbox)) {
               // โดนตีเต็มๆ! ทำครั้งเดียวในหนึ่งการโจมตี
-              e.hasDealtDamageThisAttack = true; 
+              e.hasDealtDamageThisAttack = true;
               enemy = e;
-              int damage = 10; 
+              int damage = 10;
               damagePlayer(damage);
-              rabbit.playHit();
-              
-              // ✅ ยกเลิกการผลักออกก่อนหลังถูกโจมตี (ไม่มี knockback)
+              rabbit.playHit(attackerPos: e.position);
+
+              // ✅ ผลักผู้เล่นออก (Knockback) ตรงข้ามกับตำแหน่งศัตรู
+              Vector2 pushDir = (rabbit.position - e.position).normalized();
+              if (pushDir.length == 0) pushDir = Vector2(1, 0);
+              rabbit.position += pushDir * 40.0; // ผลักกระเด็นออกไป 40 pixel
+
               collisionCooldown = 1.5; // คูลดาวน์อมตะให้ผู้เล่นรอดพ้นจากการโดนรุมตีชั่วคราว
-            } 
+            }
           }
         }
       }
@@ -1830,7 +1885,8 @@ class RabbitGame extends FlameGame
     rabbit.playAttack(isRunning: isRunning);
 
     if (isRunning) {
-      double dashSpeed = (100.0 + (GameData.agility * 1.5)) * 1.2; // พุ่งตีด้วยสปีด x1.2
+      double dashSpeed =
+          (100.0 + (GameData.agility * 1.5)) * 1.2; // พุ่งตีด้วยสปีด x1.2
       _dashAttackVelocity = lastDirection * dashSpeed;
     } else {
       _dashAttackVelocity = Vector2.zero();
@@ -2118,26 +2174,47 @@ class _RespawnData {
   });
 }
 
-// ✅ กล่องสีแดงสำหรับเช็คระยะ Hitbox
+// ✅ กล่องสีแดงสำหรับเช็คระยะ Hitbox (แก้ไขให้มี 2 สถานะ: เตือน กับ โจมตีจริง)
 class DebugHitbox extends PositionComponent {
   final double lifetime;
+  final bool isWarning;
   double elapsed = 0.0;
 
   DebugHitbox({
     required Vector2 position,
     required Vector2 size,
     this.lifetime = 0.3,
+    this.isWarning = false,
   }) : super(position: position, size: size, anchor: Anchor.center);
 
   @override
   void render(Canvas canvas) {
     super.render(canvas);
-    canvas.drawRect(
-      size.toRect(),
-      Paint()
-        ..color = Colors.red.withOpacity(0.5)
-        ..style = PaintingStyle.fill,
-    );
+
+    if (isWarning) {
+      // ✅ 1. State: Warning (เตือนผู้เล่น: พิ้นที่อันตรายสีเหลืองส้ม มีขอบ)
+      canvas.drawRect(
+        size.toRect(),
+        Paint()
+          ..color = Colors.orange.withOpacity(0.3)
+          ..style = PaintingStyle.fill,
+      );
+      canvas.drawRect(
+        size.toRect(),
+        Paint()
+          ..color = Colors.orangeAccent
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0,
+      );
+    } else {
+      // ✅ 2. State: Real attack (โจมตีจริง: สีแดงเข้ม)
+      canvas.drawRect(
+        size.toRect(),
+        Paint()
+          ..color = Colors.red.withOpacity(0.7)
+          ..style = PaintingStyle.fill,
+      );
+    }
   }
 
   @override
@@ -2149,4 +2226,3 @@ class DebugHitbox extends PositionComponent {
     }
   }
 }
-

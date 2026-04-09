@@ -42,6 +42,8 @@ class Enemy extends SpriteAnimationGroupComponent<RabbitState> with HasGameRef {
   bool hasDealtDamageThisAttack = false;
   Vector2 attackTargetDir = Vector2.zero();
   double attackCooldownTimer = 0.0; // ✅ คูลดาวน์การโจมตี
+  bool isPreAttacking = false; // ✅ แจ้งสถานะกำลังเตรียมโจมตี (หน่วงเวลา)
+  double preAttackTimer = 0.0; // ✅ ระยะเวลาหน่วงก่อนโจมตีจริง
 
   double get attackElapsed => _attackElapsed;
   double get attackStepTime => _attackStepTime;
@@ -178,8 +180,8 @@ class Enemy extends SpriteAnimationGroupComponent<RabbitState> with HasGameRef {
     current = RabbitState.idleDown;
   }
 
-  // ✅ ฟังก์ชันโดนดาเมจ (ใช้แทนการเรียก playHit ตรงๆ)
-  void takeDamage(int damage) {
+  // ✅ ฟังก์ชันโดนดาเมจ (ส่งตำแหน่งคนตีมาด้วยเพื่อหันหน้าไปทางคนตี)
+  void takeDamage(int damage, {Vector2? attackerPos}) {
     if (!alive) return;
 
     hp -= damage;
@@ -199,7 +201,7 @@ class Enemy extends SpriteAnimationGroupComponent<RabbitState> with HasGameRef {
       hp = 0;
       die();
     } else {
-      playHit();
+      playHit(attackerPos: attackerPos);
     }
   }
 
@@ -243,14 +245,20 @@ class Enemy extends SpriteAnimationGroupComponent<RabbitState> with HasGameRef {
     }
   }
 
-  void playHit() {
+  void playHit({Vector2? attackerPos}) {
     if (!_isHitPlaying && alive && !_isAttackPlaying) {
       _isHitPlaying = true;
       _hitElapsed = 0.0;
-      if (lastDirection.x.abs() >= lastDirection.y.abs()) {
-        current = lastDirection.x > 0 ? RabbitState.hitRight : RabbitState.hitLeft;
+      
+      Vector2 hitDir = lastDirection;
+      if (attackerPos != null) {
+        hitDir = (attackerPos - position).normalized();
+      }
+
+      if (hitDir.x.abs() >= hitDir.y.abs()) {
+        current = hitDir.x > 0 ? RabbitState.hitRight : RabbitState.hitLeft;
       } else {
-        current = lastDirection.y > 0 ? RabbitState.hitDown : RabbitState.hitUp;
+        current = hitDir.y > 0 ? RabbitState.hitDown : RabbitState.hitUp;
       }
     }
   }
@@ -318,11 +326,42 @@ class Enemy extends SpriteAnimationGroupComponent<RabbitState> with HasGameRef {
       if (_attackElapsed >= GameData.attackStepTime * GameData.attackFrameCount) {
         _isAttackPlaying = false;
         _attackElapsed = 0.0;
-        attackCooldownTimer = 2.0; // รีเซ็ตคูลดาวน์ใหม่หลังจากเล่นอนิเมชันจบเผื่อชัวร์
+        // ✅ เลือกระยะเวลาคูลดาวน์ตามผลการโจมตี
+        if (hasDealtDamageThisAttack) {
+          attackCooldownTimer = 0.5; // ถ้าตีโดนผู้เล่น: คูลดาวน์นานขึ้น (พักเหนื่อย)
+        } else {
+          attackCooldownTimer = 0.25; // ถ้าตีไม่โดน (วืด): คูลดาวน์สั้นลง (ก้าวร้าวขึ้น)
+        }
+        
         hasDealtDamageThisAttack = false;
       }
     }
 
     updateAnimationState();
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    // ✅ วาดกรอบ Hitbox สำหรับรับดาเมจ (Hurtbox Margin) ให้อยู่ส่วนเท้า
+    // จุดศูนย์กลางของ Component คือ 32, 32 (จากขนาด 64x64)
+    // เลื่อนลงไปที่เท้า (center y = 48, size 32x24)
+    canvas.drawRect(
+      Rect.fromCenter(center: const Offset(25, 37), width: 12, height: 6),
+      Paint()
+        ..color = const Color.fromRGBO(76, 175, 80, 0.5) // Colors.green.withOpacity(0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+
+    // ✅ แสดงวงกลมบ่งบอกระยะ "Attack Trigger Range" (40.0) หรือระยะเข้าโจมตี
+    canvas.drawCircle(
+      const Offset(32, 32), // จุดศูนย์กลางของตัวละคร 64x64
+      40.0,
+      Paint()
+        ..color = const Color.fromRGBO(255, 193, 7, 0.3) // สีเหลืองโปร่งแสง
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
   }
 }

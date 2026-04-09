@@ -2,8 +2,8 @@ import 'package:flame/components.dart';
 import 'package:flame/sprite.dart';
 import 'package:flame/game.dart';
 import 'package:flame/collisions.dart';
+import 'package:flutter/material.dart';
 import '../../data/game_data.dart';
-
 enum RabbitState {
   idleDown,
   idleUp,
@@ -246,7 +246,11 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
     if (state == RabbitState.deadDown ||
         state == RabbitState.deadUp ||
         state == RabbitState.deadLeft ||
-        state == RabbitState.deadRight) {
+        state == RabbitState.deadRight ||
+        state == RabbitState.hitDown ||
+        state == RabbitState.hitUp ||
+        state == RabbitState.hitLeft ||
+        state == RabbitState.hitRight) {
       _isHitPlaying = true;
       _hitElapsed = 0.0;
     } else if (state == RabbitState.idleDown ||
@@ -301,10 +305,29 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
   }
 
 
-  void playHit() {
+  void playHit({Vector2? attackerPos}) {
     if (_isDead) return;
-    setState(RabbitState.hitDown);
-    // ไม่ต้องใช้ Future.delayed เพื่อคืนค่า เพราะทำใน update แล้ว (แม่นยำกว่า)
+    
+    // หากมีตำแหน่งคนตี ให้หันหน้าไปทางนั้น ถ้าไม่มีให้ใช้ทิศทางล่าสุด
+    Vector2 hitDir = lastDirection;
+    if (attackerPos != null) {
+      hitDir = (attackerPos - position).normalized();
+    }
+
+    // เลือกทิศทางให้ตรงกับค่าที่คำนวณได้
+    if (hitDir.x.abs() >= hitDir.y.abs()) {
+      if (hitDir.x > 0) {
+        setState(RabbitState.hitRight);
+      } else {
+        setState(RabbitState.hitLeft);
+      }
+    } else {
+      if (hitDir.y > 0) {
+        setState(RabbitState.hitDown);
+      } else {
+        setState(RabbitState.hitUp);
+      }
+    }
   }
 
   // ✅ ฟังก์ชันเล่นท่าโจมตี (เลือกทิศทางตาม state ปัจจุบัน)
@@ -370,9 +393,26 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
 
   void playDeath() {
     if (_isDead) return;
-    _isDead = true;
+    
     velocity = Vector2.zero(); // หยุดเดิน
-    setState(RabbitState.deadDown);
+    
+    // ✅ เลือกทิศทางล้มตายให้ตรงกับที่หันอยู่
+    if (lastDirection.x.abs() >= lastDirection.y.abs()) {
+      if (lastDirection.x > 0) {
+        setState(RabbitState.deadRight);
+      } else {
+        setState(RabbitState.deadLeft);
+      }
+    } else {
+      if (lastDirection.y > 0) {
+        setState(RabbitState.deadDown);
+      } else {
+        setState(RabbitState.deadUp);
+      }
+    }
+
+    _isDead = true;
+
     // ลบออกจากเกมเมื่อเล่นท่าตายจบ (หรือดีเลย์สักพัก)
     Future.delayed(const Duration(seconds: 2), () {
       if (_isDead) {
@@ -398,5 +438,20 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
     _isHitPlaying = false;
     velocity = Vector2.zero();
     current = RabbitState.idleRight;
+  }
+
+  @override
+  void render(Canvas canvas) {
+    super.render(canvas);
+    // ✅ วาดกรอบ Hitbox สำหรับรับดาเมจ (Hurtbox Margin) ให้อยู่ส่วนเท้า
+    // จุดศูนย์กลางของ Component คือ 50, 50 (จากขนาด 100x100)
+    // เลื่อนลงไปที่เท้า (center y = 86, size 60x28)
+    canvas.drawRect(
+      Rect.fromCenter(center: const Offset(50, 65), width: 20, height: 10),
+      Paint()
+        ..color = const Color.fromRGBO(33, 150, 243, 0.5) // Colors.blue.withOpacity(0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
   }
 }
