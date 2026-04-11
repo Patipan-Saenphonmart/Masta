@@ -554,8 +554,7 @@ class RabbitGame extends FlameGame
     final savedPos = await SaveManager.loadPlayerPosition();
     final spawnPos = savedPos != null
         ? Vector2(savedPos['x']!, savedPos['y']!)
-        : Vector2(3678,
-            2464); // ********************** จุดกระต่ายเกิดใหม่ตั้งแต่เริ่มเกมครั้งแรก **********************
+        : Vector2(3678, 2464); // ********************** จุดกระต่ายเกิดใหม่ตั้งแต่เริ่มเกมครั้งแรก **********************
 
     world = World();
     add(world);
@@ -1333,7 +1332,7 @@ class RabbitGame extends FlameGame
     }
 
     // ✅ ย้ายตัวละครกลับไปจุดเริ่มต้น โดยไม่ลบโลก (จะได้ไม่ลบไอเทมที่เพิ่งดรอปทิ้งไว้)
-    rabbit.position = Vector2(600, 540);
+    rabbit.position = Vector2(3678, 2464);
 
     // แสดงปุ่ม Skill และกระเป๋ากลับมา
     overlays.remove('GameOverOverlay');
