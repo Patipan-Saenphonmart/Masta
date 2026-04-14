@@ -554,7 +554,7 @@ class RabbitGame extends FlameGame
     final savedPos = await SaveManager.loadPlayerPosition();
     final spawnPos = savedPos != null
         ? Vector2(savedPos['x']!, savedPos['y']!)
-        : Vector2(3678, 2464); // ********************** จุดกระต่ายเกิดใหม่ตั้งแต่เริ่มเกมครั้งแรก **********************
+        : Vector2(4750, 2950); // ********************** จุดกระต่ายเกิดใหม่ตั้งแต่เริ่มเกมครั้งแรก **********************
 
     world = World();
     add(world);
@@ -1412,7 +1412,7 @@ class RabbitGame extends FlameGame
           switch (type) {
             case 'NPC':
               world.add(Npc(
-                position: Vector2(obj.x, obj.y),
+                position: Vector2(obj.x + (obj.width / 2), obj.y + (obj.height / 2)),
                 size: Vector2(obj.width, obj.height),
                 message:
                     obj.properties.getValue<String>('message') ?? 'สวัสดี!',
@@ -1429,7 +1429,7 @@ class RabbitGame extends FlameGame
               final weakSubj =
                   obj.properties.getValue<String>('weakSubject') ?? 'เคมี';
               world.add(Enemy(
-                position: Vector2(obj.x, obj.y),
+                position: Vector2(obj.x + (obj.width / 2), obj.y + (obj.height / 2)),
                 enemyName: enemyName,
                 element: enemyElement,
                 strongSubject: strongSubj,

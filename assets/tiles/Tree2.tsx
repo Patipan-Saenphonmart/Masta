@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.12.1" name="Tree2" tilewidth="192" tileheight="256" tilecount="8" columns="8">
- <image source="Tiny Swords (Free Pack)/Tiny Swords (Free Pack)/Terrain/Resources/Wood/Trees/Tree2.png" width="1536" height="256"/>
+ <image source="Trees/Tree2.png" width="1536" height="256"/>
  <tile id="0">
   <animation>
    <frame tileid="0" duration="100"/>

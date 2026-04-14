@@ -70,6 +70,18 @@ flutter:
   assets:
     - assets/images/
     - assets/tiles/
+    - assets/tiles/Tileset/
+    - assets/tiles/Rocks/
+    - assets/tiles/Trees/
+    - assets/tiles/Rocks in the Water/
+    - assets/tiles/Bushes/
+    - assets/tiles/Black Buildings/
+    - assets/images/Tileset/
+    - assets/images/Rocks/
+    - assets/images/Trees/
+    - assets/images/Rocks in the Water/
+    - assets/images/Bushes/
+    - assets/images/Black Buildings/
     - assets/images/world/
     - assets/audio/bgm/
     - assets/audio/sfx/

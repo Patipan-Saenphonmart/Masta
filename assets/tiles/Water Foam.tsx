@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <tileset version="1.10" tiledversion="1.12.1" name="Water Foam" tilewidth="192" tileheight="192" tilecount="16" columns="16">
- <image source="Tiny Swords (Free Pack)/Tiny Swords (Free Pack)/Terrain/Tileset/Water Foam.png" width="3072" height="192"/>
+ <image source="Tileset/Water Foam.png" width="3072" height="192"/>
  <tile id="0">
   <animation>
    <frame tileid="0" duration="100"/>
