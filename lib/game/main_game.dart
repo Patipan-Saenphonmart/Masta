@@ -554,7 +554,8 @@ class RabbitGame extends FlameGame
     final savedPos = await SaveManager.loadPlayerPosition();
     final spawnPos = savedPos != null
         ? Vector2(savedPos['x']!, savedPos['y']!)
-        : Vector2(4750, 2950); // ********************** จุดกระต่ายเกิดใหม่ตั้งแต่เริ่มเกมครั้งแรก **********************
+        : Vector2(4750,
+            2950); // ********************** จุดกระต่ายเกิดใหม่ตั้งแต่เริ่มเกมครั้งแรก **********************
 
     world = World();
     add(world);
@@ -1155,7 +1156,7 @@ class RabbitGame extends FlameGame
             // เล่นแอนิเมชันโจมตี (เริ่มชาร์จ)
             e.playAttack();
             e.hasDealtDamageThisAttack = false;
-            // ✅ นำการตั้งค่า Cooldown 2.0 ตรงนี้ออก 
+            // ✅ นำการตั้งค่า Cooldown 2.0 ตรงนี้ออก
             // เพราะย้ายไปตั้งค่าตามผลใน enemy.dart แล้ว
           }
         }
@@ -1205,7 +1206,8 @@ class RabbitGame extends FlameGame
               if (pushDir.length == 0) pushDir = Vector2(1, 0);
               rabbit.position += pushDir * 40.0; // ผลักกระเด็นออกไป 40 pixel
 
-              collisionCooldown = 1.5; // คูลดาวน์อมตะให้ผู้เล่นรอดพ้นจากการโดนรุมตีชั่วคราว
+              collisionCooldown =
+                  1.5; // คูลดาวน์อมตะให้ผู้เล่นรอดพ้นจากการโดนรุมตีชั่วคราว
             }
           }
         }
@@ -1400,6 +1402,39 @@ class RabbitGame extends FlameGame
       map = newMap;
       world.add(map);
 
+      // ✅ Fix rendering offset for animated foam layer
+      // Tiled uses bottom-left anchor for large tiles (192x192), Flame uses top-left.
+      // 192 - 64 = 128 pixels offset needed to align properly with the editor.
+      final waterLayer = map.tileMap.getLayer<TileLayer>('water');
+      if (waterLayer != null) {
+        waterLayer.offsetY = 0;
+        waterLayer.offsetX = 128;
+      }
+
+      final treelayer = map.tileMap.getLayer<TileLayer>('Trees front');
+      if (treelayer != null) {
+        treelayer.offsetY = 0;
+        treelayer.offsetX = 128;
+      }
+
+      final bushlayer = map.tileMap.getLayer<TileLayer>('bush');
+      if (bushlayer != null) {
+        bushlayer.offsetY = 0;
+        bushlayer.offsetX = 128;
+      }
+
+      final buildinglayer = map.tileMap.getLayer<TileLayer>('Buildings');
+      if (buildinglayer != null) {
+        buildinglayer.offsetY = 0;
+        buildinglayer.offsetX = 64;
+      }
+
+      final castlelayer = map.tileMap.getLayer<TileLayer>('Castle');
+      if (castlelayer != null) {
+        castlelayer.offsetY = 0;
+        castlelayer.offsetX = 256;
+      }
+
       rabbit.position = targetSpawnPosition;
 
       // ... (Code ส่วนโหลด GameObjects / Collisions เหมือนเดิม ข้ามไปส่วน Decorations เลย) ...
@@ -1412,7 +1447,8 @@ class RabbitGame extends FlameGame
           switch (type) {
             case 'NPC':
               world.add(Npc(
-                position: Vector2(obj.x + (obj.width / 2), obj.y + (obj.height / 2)),
+                position:
+                    Vector2(obj.x + (obj.width / 2), obj.y + (obj.height / 2)),
                 size: Vector2(obj.width, obj.height),
                 message:
                     obj.properties.getValue<String>('message') ?? 'สวัสดี!',
@@ -1429,7 +1465,8 @@ class RabbitGame extends FlameGame
               final weakSubj =
                   obj.properties.getValue<String>('weakSubject') ?? 'เคมี';
               world.add(Enemy(
-                position: Vector2(obj.x + (obj.width / 2), obj.y + (obj.height / 2)),
+                position:
+                    Vector2(obj.x + (obj.width / 2), obj.y + (obj.height / 2)),
                 enemyName: enemyName,
                 element: enemyElement,
                 strongSubject: strongSubj,
