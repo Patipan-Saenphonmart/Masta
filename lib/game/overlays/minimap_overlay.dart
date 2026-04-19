@@ -4,6 +4,10 @@ import '../main_game.dart';
 import '../../data/game_data.dart';
 import '../components/enemy.dart';
 import '../components/tree.dart';
+import '../components/npc.dart';
+import '../components/portal.dart';
+import '../components/obstacle.dart';
+import '../components/decoration.dart';
 
 class MiniMapOverlay extends StatelessWidget {
   final RabbitGame game;
@@ -21,7 +25,7 @@ class MiniMapOverlay extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
               blurRadius: 10,
               offset: const Offset(0, 5),
             )
@@ -123,7 +127,7 @@ class _MiniMapPainter extends CustomPainter {
 
     // ต้นไม้/ของตกแต่ง (สีเขียวเข้ม)
     final decoPaint = Paint()..color = const Color(0xFF2E7D32);
-    for (final deco in game.world.children.whereType<Decoration>()) {
+    for (final deco in game.world.children.whereType<MyDecoration>()) {
       canvas.drawRect(deco.toRect(), decoPaint);
     }
     for (final tree in game.world.children.whereType<Tree>()) {

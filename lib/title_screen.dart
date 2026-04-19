@@ -4,7 +4,7 @@ import 'page/home_page.dart';
 import 'data/game_data.dart';
 import 'utils/save_manager.dart';
 import 'utils/audio_manager.dart'; // ✅ Import AudioManager
-import 'game/main_game.dart'; // ✅ Import RabbitGamePage
+import 'page/main_game_page.dart';
 
 class TitleScreen extends StatefulWidget {
   const TitleScreen({super.key});
@@ -85,7 +85,7 @@ class _TitleScreenState extends State<TitleScreen> {
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const RabbitGamePage(showIntroCutscene: true),
+            const MainGamePage(showIntroCutscene: true),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },

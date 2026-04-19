@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flame/widgets.dart'; 
 import 'package:flame/components.dart';
 import '../data/game_data.dart';
-import '../game/main_game.dart'; 
+import '../page/main_game_page.dart';
 import '../utils/audio_manager.dart'; // ✅ Import AudioManager
 
 class CharacterPage extends StatefulWidget {
@@ -62,7 +62,7 @@ class _CharacterPageState extends State<CharacterPage> with SingleTickerProvider
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => RabbitGamePage(showIntroCutscene: showCutscene),
+        builder: (context) => MainGamePage(showIntroCutscene: showCutscene),
       ),
     );
   }

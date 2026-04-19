@@ -5,473 +5,25 @@ import 'package:flame/game.dart';
 import 'package:flame/input.dart';
 import 'package:flutter/material.dart';
 import 'package:flame_tiled/flame_tiled.dart' hide Text;
-import 'package:flame/collisions.dart';
 import '../data/game_data.dart';
 import 'components/player.dart';
 import 'components/enemy.dart';
 import 'components/tree.dart';
-import 'utils/astar.dart';
-import 'overlays/question_overlay.dart';
-import 'overlays/skill_overlay.dart';
-import 'overlays/battle_overlay.dart';
-import 'overlays/game_over_overlay.dart';
-import 'overlays/quest_overlay.dart'; // ✅ Import QuestOverlay
-import 'overlays/inventory_overlay.dart'; // ✅ Import InventoryOverlay
-import 'overlays/cutscene_overlay.dart'; // ✅ Import CutsceneOverlay
-import 'overlays/minimap_overlay.dart'; // ✅ Import MiniMap
-import 'overlays/game_ending_overlay.dart'; // ✅ Import GameEndingOverlay
+import '../utils/astar.dart';
+import 'components/npc.dart';
+import 'components/portal.dart';
+import 'components/world_item.dart';
+import 'components/fireball.dart';
+import 'components/obstacle.dart';
+import 'components/decoration.dart';
+import '../utils/debug_hitbox.dart';
 import '../utils/save_manager.dart'; // ✅ Import SaveManager
-import '../utils/audio_manager.dart'; // ✅ Import AudioManager
-import '../page/home_page.dart'; // ✅ Import Home Page
+import '../utils/audio_manager.dart';
+import 'components/respawn_enemy.dart';
+import 'components/cutscene_trigger.dart';
+import '../models/cutscene_script.dart';
+import 'components/cutscene_script/bridge_scene_script.dart';
 
-// =====================================================================
-// 1. WIDGET: Game Page & UI Overlays
-// =====================================================================
-
-class RabbitGamePage extends StatelessWidget {
-  final bool showIntroCutscene; // ✅ เพิ่ม parameter สำหรับ cutscene
-  const RabbitGamePage({super.key, this.showIntroCutscene = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final game = RabbitGame()
-      ..isCutsceneMode = showIntroCutscene; // ✅ set cutscene mode flag
-
-    return Scaffold(
-      body: GameWidget<RabbitGame>(
-        game: game,
-        overlayBuilderMap: {
-          'QuestionOverlay': (ctx, g) => QuestionOverlay(game: g, topic: ''),
-          'SkillOverlay': (ctx, g) => SkillOverlay(game: g),
-          'DialogOverlay': (ctx, g) => _buildDialogOverlay(ctx, g),
-          'ActionOverlay': (ctx, g) => _buildActionOverlay(ctx, g),
-          'BagOverlay': (ctx, g) => _buildBagOverlay(context, g),
-          // ✅ Battle Overlay ใหม่
-          'BattleOverlay': (ctx, g) => BattleOverlay(
-                game: g,
-                enemy: g.enemy ?? Enemy(),
-              ),
-          'GameOverOverlay': (ctx, g) => GameOverOverlay(game: g),
-          'QuestOverlay': (ctx, g) =>
-              QuestOverlay(game: g), // ✅ เพิ่ม Quest Overlay
-          'OptionMenuOverlay': (ctx, g) => _buildOptionMenuOverlay(ctx, g),
-          'InventoryOverlay': (ctx, g) => InventoryOverlay(game: g),
-          // ✅ Cutscene Overlay
-          'CutsceneOverlay': (ctx, g) => CutsceneOverlay(game: g),
-          // ✅ MiniMap Overlay
-          'MiniMapOverlay': (ctx, g) => MiniMapOverlay(game: g),
-          // ✅ Game Ending Overlay
-          'GameEndingOverlay': (ctx, g) => GameEndingOverlay(game: g),
-        },
-        initialActiveOverlays: showIntroCutscene
-            ? const ['CutsceneOverlay'] // ✅ เริ่มด้วย cutscene ไม่มี UI อื่น
-            : const [
-                'SkillOverlay',
-                'BagOverlay',
-                'QuestOverlay'
-              ], // ✅ เพิ่มเควสต์ในตอนเริ่มเกม
-      ),
-    );
-  }
-
-  // ✅ ปุ่ม Action ที่เปลี่ยนไอคอน/label ได้ (NPC / Portal / Item)
-  // ย้ายมาแสดงตรงกลาง-ล่าง เพื่อไม่ซ้อนกับปุ่ม Skill ทางขวา
-  Widget _buildActionOverlay(BuildContext context, RabbitGame game) {
-    IconData icon = Icons.touch_app;
-    Color bgColor = Colors.amber;
-    String label = "กด";
-
-    if (game.activeNpc != null) {
-      icon = Icons.chat_bubble;
-      bgColor = Colors.blueAccent;
-      label = "คุย";
-    } else if (game.activePortal != null) {
-      icon = Icons.meeting_room_rounded;
-      bgColor = Colors.amber;
-      label = "เข้า";
-    } else if (game.activeItem != null) {
-      icon = Icons.back_hand;
-      bgColor = Colors.green;
-      label = "เก็บ";
-    }
-
-    return Positioned(
-      bottom: 30,
-      left: 0,
-      right: 0,
-      child: Center(
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.0, end: 1.0),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.elasticOut,
-          builder: (context, value, child) {
-            return Transform.scale(
-              scale: value,
-              child: child,
-            );
-          },
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => game.onActionPressed(),
-              borderRadius: BorderRadius.circular(20),
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                decoration: BoxDecoration(
-                  color: bgColor.withOpacity(0.95),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: const [
-                    BoxShadow(
-                        color: Colors.black45,
-                        blurRadius: 6,
-                        offset: Offset(0, 4))
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, color: Colors.white, size: 28),
-                    const SizedBox(width: 8),
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                              color: Colors.black45,
-                              offset: Offset(1, 1),
-                              blurRadius: 2)
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ✅ ปุ่มเซฟ & ปุ่มเปิดกระเป๋า (มุมขวาบน) — สไตล์ Pixel/Fantasy
-  Widget _buildBagOverlay(BuildContext context, RabbitGame game) {
-    return Positioned(
-      top: 16,
-      right: 16,
-      child: Row(
-        children: [
-          // ⚙️ ปุ่ม ตั้งค่า (เปิด Option Menu)
-          GestureDetector(
-            onTap: () {
-              game.overlays.add('OptionMenuOverlay');
-            },
-            child: Container(
-              width: 52,
-              height: 52,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF8D6E63), Color(0xFF5D4037)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF4E342E), width: 3),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black38, offset: Offset(0, 4))
-                ],
-              ),
-              child: const Icon(Icons.settings,
-                  color: Color(0xFFFFECB3), size: 28),
-            ),
-          ),
-
-          // 🎒 ปุ่ม กระเป๋า (เปิด Inventory Overlay)
-          GestureDetector(
-            onTap: () {
-              game.overlays.add('InventoryOverlay');
-            },
-            child: Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF8D6E63), Color(0xFF5D4037)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF4E342E), width: 3),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black38, offset: Offset(0, 4))
-                ],
-              ),
-              child: const Icon(Icons.backpack,
-                  color: Color(0xFFFFECB3), size: 28),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ✅ Dialog สไตล์ Wood Frame — Fantasy theme
-  Widget _buildDialogOverlay(BuildContext context, RabbitGame game) {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: const Color(0xFF4E342E), // ขอบไม้เข้ม
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(
-                color: Colors.black54, blurRadius: 8, offset: Offset(0, 4)),
-          ],
-        ),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF8E1), // พื้นกระดาษครีม
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFD7CCC8), width: 2),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // NPC label
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF795548),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text("NPC",
-                    style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                game.currentDialogMessage,
-                style: const TextStyle(
-                  color: Color(0xFF3E2723),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: GestureDetector(
-                  onTap: () => game.closeDialog(),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF8D6E63),
-                      borderRadius: BorderRadius.circular(10),
-                      border:
-                          Border.all(color: const Color(0xFF5D4037), width: 2),
-                      boxShadow: const [
-                        BoxShadow(
-                            color: Colors.black26,
-                            offset: Offset(0, 3),
-                            blurRadius: 0),
-                      ],
-                    ),
-                    child: const Text(
-                      "ปิด ▶",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              )
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ✅ เมนูตั้งค่า (Option Menu)
-  Widget _buildOptionMenuOverlay(BuildContext context, RabbitGame game) {
-    return Container(
-      color: Colors.black.withOpacity(0.6),
-      child: Center(
-        child: Container(
-          width: 320,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF8E1), // พื้นกระดาษครีม
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFF8D6E63), width: 4),
-            boxShadow: const [
-              BoxShadow(
-                  color: Colors.black54, blurRadius: 10, offset: Offset(0, 5))
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text("การตั้งค่า (OPTIONS)",
-                  style: TextStyle(
-                    color: Color(0xFF4E342E),
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    fontFamily: 'Comic Sans MS',
-                  )),
-              const Divider(color: Color(0xFFD7CCC8), thickness: 2, height: 30),
-
-              // 🎵 ปิด/เปิดเสียง
-              _optionButton(
-                  icon: Icons.music_note_rounded,
-                  label: AudioManager().isMuted ? "เปิดเสียง" : "ปิดเสียง",
-                  color: const Color(0xFF1976D2),
-                  onTap: () {
-                    AudioManager().toggleMute();
-                    AudioManager().playSfx(AudioManager.sfxUiClick);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(
-                            AudioManager().isMuted
-                                ? 'ปิดเสียงแล้ว 🔇'
-                                : 'เปิดเสียงแล้ว 🔊',
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold))));
-                  }),
-              const SizedBox(height: 12),
-
-              // 🚪 ออกจากเกมกลับหน้าหลัก (✅ Auto Save + ไป Home แทน TitleScreen)
-              _optionButton(
-                  icon: Icons.door_back_door_rounded,
-                  label: "กลับหน้าหลัก (Quit)",
-                  color: const Color(0xFFD32F2F),
-                  onTap: () async {
-                    await SaveManager.savePlayerPosition(
-                        game.rabbit.position.x, game.rabbit.position.y);
-                    await SaveManager.saveGame(); // ✅ Auto-save ก่อนออก
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text(
-                              'บันทึกข้อมูลอัตโนมัติเรียบร้อยแล้ว! 💾',
-                              style: TextStyle(fontWeight: FontWeight.bold))));
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        PageRouteBuilder(
-                          pageBuilder: (context, animation,
-                                  secondaryAnimation) =>
-                              const LearningGameHome(), // ✅ ไป Home แทน TitleScreen
-                          transitionsBuilder:
-                              (context, animation, secondaryAnimation, child) {
-                            return FadeTransition(
-                                opacity: animation, child: child);
-                          },
-                        ),
-                        (route) => false,
-                      );
-                    }
-                  }),
-              const SizedBox(height: 12),
-
-              // 🗑️ ลบข้อมูลเซฟ (Clear Save)
-              _optionButton(
-                  icon: Icons.delete_forever_rounded,
-                  label: "ลบข้อมูลเซฟ (Reset)",
-                  color: Colors.orange.shade800,
-                  onTap: () async {
-                    // ล้างข้อมูลทั้งหมด
-                    await SaveManager.clearSave();
-                    GameData.reset();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('ลบข้อมูลเซฟเรียบร้อยแล้ว! 🗑️',
-                              style: TextStyle(fontWeight: FontWeight.bold))));
-                      Navigator.pushAndRemoveUntil(
-                        context,
-                        PageRouteBuilder(
-                          pageBuilder:
-                              (context, animation, secondaryAnimation) =>
-                                  const LearningGameHome(), // กลับไปหน้า Home
-                          transitionsBuilder:
-                              (context, animation, secondaryAnimation, child) {
-                            return FadeTransition(
-                                opacity: animation, child: child);
-                          },
-                        ),
-                        (route) => false,
-                      );
-                    }
-                  }),
-
-              const SizedBox(height: 24),
-              // ❌ กลับเข้าเกม
-              GestureDetector(
-                onTap: () => game.overlays.remove('OptionMenuOverlay'),
-                child: const Text("▶ กลับสู่การผจญภัย",
-                    style: TextStyle(
-                        color: Color(0xFF795548),
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Comic Sans MS')),
-              )
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _optionButton(
-      {required IconData icon,
-      required String label,
-      required Color color,
-      required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-        decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: const [
-              BoxShadow(
-                  color: Colors.black38, offset: Offset(0, 3), blurRadius: 2)
-            ]),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 26),
-            const SizedBox(width: 14),
-            Text(label,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Comic Sans MS')),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =====================================================================
-// 2. FLAME GAME LOGIC
-// =====================================================================
 
 class RabbitGame extends FlameGame
     with HasCollisionDetection, HasKeyboardHandlerComponents {
@@ -498,6 +50,7 @@ class RabbitGame extends FlameGame
 
   // --- Cutscene State ---
   bool isCutsceneMode = false; // ✅ Cutscene mode flag
+  CutsceneScript? currentScript; // ✅ สคริปต์คัตซีนปัจจุบัน (data-driven)
 
   // --- Interaction State ---
   String currentDialogMessage = "";
@@ -537,7 +90,7 @@ class RabbitGame extends FlameGame
   static const double _positionSaveInterval = 2.0;
 
   // --- Respawn & Loot ---
-  final List<_RespawnData> _respawnWaitList = [];
+  final List<RespawnData> _respawnWaitList = [];
 
   // --- Transition ---
   bool _isTransitioning = false;
@@ -703,6 +256,49 @@ class RabbitGame extends FlameGame
       }
     });
 
+    // 1. [LIVING] ค้นหากล่อง Trigger ทั้งหมดในฉาก
+    for (final trigger in world.children.whereType<CutsceneTrigger>()) {
+      // ---------------------------------------------------------
+      // 🌟 สร้าง Hitbox จำลอง (ส่วนเท้า) ให้กระต่าย แทนการใช้ .toRect()
+      // ---------------------------------------------------------
+      Rect rabbitHitBox = Rect.fromCenter(
+        center: Offset(rabbit.position.x, rabbit.position.y + 15),
+        width: 20,
+        height: 10,
+      );
+
+      // 2. [INPUT: Collision] เช็คว่าสี่เหลี่ยมกระต่าย ทับซ้อน (overlap) กับกล่องไหม?
+      // และเช็คว่ากล่องนี้ยังไม่เคยถูกเหยียบใช่ไหม? (!hasTriggered)
+      if (!trigger.hasTriggered && rabbitHitBox.overlaps(trigger.toRect())) {
+        // ล็อกกุญแจทันที! ป้องกันไม่ให้เฟรมถัดไป (1/60 วินาที) มารันโค้ดนี้ซ้ำ
+        trigger.hasTriggered = true;
+        print("ชนกล่องแล้ว ✅✅✅");
+        // 🌟 แยกแยะว่าเหยียบโดนกล่องของฉากไหน
+        switch (trigger.actionName) {
+          
+          case 'tutorial_cutscene':
+            print("🎬 โหลดฉาก: เจอศัตรูที่สะพาน");
+            currentScript = bridgeSceneScript; // สร้างสคริปต์ฉากสะพานมารองรับ
+            break; // 👈 จบเคสสะพาน
+            
+          // วันหลังเพิ่ม case 'boss_scene' ได้ที่นี่เลย
+        }
+
+        // ==========================================
+        // 3. [INTEGRATION] การเข้าไปแทรกแซงระบบอื่น! (รวบยอดทำทีเดียว)
+        // ==========================================
+        if (currentScript != null) { // ถ้ามีสคริปต์ให้เล่น
+          joystickDirection.setZero();
+          isCutsceneMode = true;
+          
+          overlays.add('CutsceneOverlay');
+          overlays.remove('SkillOverlay');
+          overlays.remove('BagOverlay');
+          overlays.remove('QuestOverlay');
+        }
+      }
+    }
+
     if (!inQuestion && !isDialogActive) {
       _updatePlayer(dt);
       _checkInteractions();
@@ -765,7 +361,7 @@ class RabbitGame extends FlameGame
       // ✅ Dark overlay tint เพื่อเพิ่มอารมณ์ "The World"
       canvas.drawRect(
         size.toRect(),
-        Paint()..color = Colors.deepPurple.withOpacity(0.15),
+        Paint()..color = Colors.deepPurple.withValues(alpha: 0.15),
       );
     } else {
       super.render(canvas);
@@ -775,7 +371,7 @@ class RabbitGame extends FlameGame
     if (_isTransitioning) {
       canvas.drawRect(
         size.toRect(),
-        Paint()..color = Colors.black.withOpacity(_transitionAlpha),
+        Paint()..color = Colors.black.withValues(alpha: _transitionAlpha),
       );
     }
   }
@@ -1348,6 +944,10 @@ class RabbitGame extends FlameGame
     isCutsceneMode = false;
     freezeTimer = 0; // ปลดล็อค freeze
 
+    // ✅ คืนกล้องให้กลับมาตามกระต่ายเสมอ เผื่อมีการ pan กล้องระหว่างคัตซีน
+    cameraComponent.follow(rabbit);
+    print("✅✅✅ คืนกล้องให้กลับมาตามกระต่าย");
+
     // ✅ เล่น BGM overworld หลังจบ cutscene
     AudioManager().playBgm(AudioManager.bgmOverworld);
 
@@ -1389,7 +989,7 @@ class RabbitGame extends FlameGame
       world.children.whereType<Enemy>().forEach((e) => e.removeFromParent());
       world.children.whereType<Obstacle>().forEach((o) => o.removeFromParent());
       world.children
-          .whereType<Decoration>()
+          .whereType<MyDecoration>()
           .forEach((d) => d.removeFromParent());
       world.children.whereType<Fireball>().forEach((f) => f.removeFromParent());
       world.children
@@ -1550,6 +1150,24 @@ class RabbitGame extends FlameGame
         }
       }
 
+      // 2. โหลดสิ่งกีดขวางที่ทำลายได้ (Obstacles)
+      final obstacleLayer = map.tileMap.getLayer<ObjectGroup>('Obstacles');
+      if (obstacleLayer != null) {
+        for (final obj in obstacleLayer.objects) {
+          // โหลดเป็น Class Obstacle ที่มีชื่อกำกับ เพื่อรอวันโดนลบทิ้ง
+          // ตรวจสอบทั้งชื่อหลักของ Object และ Custom Properties
+          final obstacleName = obj.name.isNotEmpty 
+              ? obj.name 
+              : (obj.properties.getValue<String>('name') ?? '');
+
+          world.add(Obstacle(
+            position: Vector2(obj.x, obj.y),
+            size: Vector2(obj.width, obj.height),
+            name: obstacleName, // ดึงชื่อ tutorial_blocker มาจาก Tiled
+          ));
+        }
+      }
+
       // ✅ จุดแก้ไขหลัก: ตรวจสอบ Type ใน Decorations Layer
       final decoLayer = map.tileMap.getLayer<ObjectGroup>('Decorations');
       if (decoLayer != null) {
@@ -1569,7 +1187,7 @@ class RabbitGame extends FlameGame
                 ));
               } else {
                 // สร้าง Decoration ธรรมดา
-                world.add(Decoration(
+                world.add(MyDecoration(
                   position: Vector2(obj.x, obj.y),
                   size: Vector2(obj.width, obj.height),
                   sprite: sprite,
@@ -1577,6 +1195,20 @@ class RabbitGame extends FlameGame
               }
             }
           }
+        }
+      }
+
+      // 1. [BIRTH] ไปควานหาเลเยอร์ที่ชื่อ 'Triggers' ในไฟล์ .tmx
+      final triggerLayer = map.tileMap.getLayer<ObjectGroup>('Triggers');
+
+      if (triggerLayer != null) {
+        for (final obj in triggerLayer.objects) {
+          // 2. [BIRTH] สร้างตัวตนให้ CutsceneTrigger และโยนลงไปใน World
+          world.add(CutsceneTrigger(
+            position: Vector2(obj.x, obj.y),
+            size: Vector2(obj.width, obj.height),
+            actionName: obj.properties.getValue<String>('action') ?? '',
+          ));
         }
       }
     } catch (e) {
@@ -1592,14 +1224,16 @@ class RabbitGame extends FlameGame
   // ✅ ฟังชั่นสปอนมอนสเตอร์พร้อมเก็บข้อมูลจุดเกิดเพื่อ Respawn
   void spawnEnemy(Enemy enemy) {
     world.add(enemy);
+    print("เกิดใหม่แล้ว✅✅✅");
   }
 
   void handleEnemyDeath(Enemy enemy) {
     // 1. สปอนของรางวัล (Loot)
     _spawnLoot(enemy.position.clone(), enemy.element);
+    onBattleWin(enemy);
 
     // 2. เก็บเข้าคิวเกิดใหม่ (30 วินาที)
-    _respawnWaitList.add(_RespawnData(
+    _respawnWaitList.add(RespawnData(
       position: enemy.position.clone(),
       name: enemy.enemyName,
       element: enemy.element,
@@ -1869,7 +1503,7 @@ class RabbitGame extends FlameGame
   // -------------------------------------------------------------------
   // ✅ Camera Zoom (สำหรับ "The World" effect)
   // -------------------------------------------------------------------
-  double _defaultZoom = 1.8;
+  final double _defaultZoom = 1.8;
   double _targetZoom = 1.8;
   bool _isZooming = false;
   double _zoomSpeed = 2.0;
@@ -1979,286 +1613,72 @@ class RabbitGame extends FlameGame
     isScanActive = false;
     // Note: ถ้ากำลังสู้ BattleOverlay อยู่ ก็ปล่อยไป หรือถ้าสแกนไม่เจอ ใครทำก็ปลดออก
   }
-}
 
-// =====================================================================
-// 3. HELPER CLASSES
-// =====================================================================
-
-enum NpcState { sleeping, idle }
-
-class Npc extends SpriteAnimationGroupComponent<NpcState>
-    with HasGameRef<RabbitGame> {
-  final String message;
-  Npc(
-      {required Vector2 position,
-      required Vector2 size,
-      required this.message}) {
-    this.position = position;
-    this.size = size;
-    anchor = Anchor.center; // ✅ ใช้ Anchor center เพื่อให้หมุน/ขยับง่าย
-  }
-
-  @override
-  Future<void> onLoad() async {
-    await super.onLoad();
-
-    // 💤 ท่าทางตอนนอน (192x32, 6 Frames)
-    final sleepImage = await gameRef.images.load('npc_sleep.png');
-    final sleepAnim = SpriteAnimation.fromFrameData(
-      sleepImage,
-      SpriteAnimationData.sequenced(
-        amount: 6,
-        stepTime: 0.3,
-        textureSize: Vector2(32, 32),
-      ),
-    );
-
-    // 👀 ท่าทางตอนคุย (160x32, 5 Frames)
-    final idleImage = await gameRef.images.load('npc_idle.png');
-    final idleAnim = SpriteAnimation.fromFrameData(
-      idleImage,
-      SpriteAnimationData.sequenced(
-        amount: 5,
-        stepTime: 0.2,
-        textureSize: Vector2(32, 32),
-      ),
-    );
-
-    animations = {
-      NpcState.sleeping: sleepAnim,
-      NpcState.idle: idleAnim,
-    };
-
-    current = NpcState.sleeping;
-  }
-
-  void setState(NpcState state) {
-    current = state;
-  }
-}
-
-class Portal extends PositionComponent {
-  final String targetMap;
-  Portal(
-      {required Vector2 position,
-      required Vector2 size,
-      required this.targetMap}) {
-    this.position = position;
-    this.size = size;
-  }
-  @override
-  void render(Canvas canvas) {
-    canvas.drawRect(
-        size.toRect(), Paint()..color = Colors.purpleAccent.withOpacity(0.3));
-  }
-}
-
-class Obstacle extends PositionComponent {
-  Obstacle({required Vector2 position, required Vector2 size}) {
-    this.position = position;
-    this.size = size;
-  }
-}
-
-class Decoration extends SpriteComponent {
-  Decoration(
-      {required Vector2 position,
-      required Vector2 size,
-      required Sprite sprite})
-      : super(
-          sprite: sprite,
-          position: position,
-          size: size,
-          anchor: Anchor.bottomLeft,
+  // 🌟 ฟังก์ชันผู้กำกับ: รับคำสั่งจากสคริปต์มาแสดงผลในเกมจริง
+  void executeCutsceneAction(String actionName) {
+    switch (actionName) {
+      
+      // --- คำสั่งที่ 1: เสกศัตรู ---
+      case 'spawn_tutorial_enemy':
+        print("👾 กำลังเสกศัตรู: ดอกไม้กลายพันธุ์!");
+        
+        final tutorialEnemy = Enemy(
+          position: Vector2(4740, 2434), // ⚠️ แก้พิกัด X, Y ให้อยู่ตรงหน้าสะพานของคุณ
+          enemyName: 'Mutant Drosera', // ชื่อศัตรู
+          weakSubject: 'Biology',    // แพ้ทางชีววิทยา
+          
+          // ใส่พารามิเตอร์อื่นๆ ของ Enemy ตามที่คลาสคุณมี...
         );
-}
+        world.add(tutorialEnemy); // โยนลงไปในแมป
+        break;
 
-// ✅ Class สำหรับไอเทมในฉาก
-class WorldItem extends SpriteAnimationComponent with HasGameRef<RabbitGame> {
-  final String name;
-  final Sprite? mapSprite; // ✅ เพิ่มตัวแปรสำหรับรับ Sprite จาก Tiled
-
-  WorldItem({
-    required Vector2 position,
-    required Vector2 size,
-    required this.name,
-    this.mapSprite, // ✅ รับค่า mapSprite
-  }) {
-    this.position = position;
-    this.size = size;
-    anchor = Anchor.bottomLeft;
-  }
-
-  @override
-  Future<void> onLoad() async {
-    // ✅ 1) ถ้ามี sprite จาก Tiled ให้ใช้เป็นแอนิเมชันเฟรมเดียว
-    if (mapSprite != null) {
-      animation = SpriteAnimation.spriteList([mapSprite!], stepTime: 1.0);
-      await super.onLoad();
-      return;
-    }
-
-    // ✅ 2) Coin drop: sprite sheet 16x16, 15 frames
-    if (name.toLowerCase().contains('gold') || name.contains('เหรียญ')) {
-      final coinImage = await gameRef.images.load('coin1_16x16.png');
-      size = Vector2(16, 16);
-      animation = SpriteAnimation.fromFrameData(
-        coinImage,
-        SpriteAnimationData.sequenced(
-          amount: 15,
-          stepTime: 0.08,
-          textureSize: Vector2(16, 16),
-        ),
-      );
-      await super.onLoad();
-      return;
-    }
-
-    // ✅ 3) อื่น ๆ ใช้ภาพเดี่ยว (แอนิเมชัน 1 เฟรม)
-    String spriteFile = 'arrow.png';
-    if (name.contains('story') || name.contains('เรื่องเล่า')) {
-      spriteFile = 'book_story.png';
-      size = Vector2(32, 32);
-    } else if (name.contains('question') || name.contains('คำถาม')) {
-      spriteFile = 'book_questions.png';
-      size = Vector2(32, 32);
-    } else if (name.toLowerCase().contains('potion') || name.contains('ยา')) {
-      size = Vector2(24, 24);
-      for (final file in const <String>['hp.png', 'h.png', 'potion.png']) {
-        try {
-          final s = await gameRef.loadSprite(file);
-          animation = SpriteAnimation.spriteList([s], stepTime: 1.0);
-          await super.onLoad();
-          return;
-        } catch (_) {
-          // try next
+      // --- คำสั่งที่ 2: เลื่อนกล้อง ---
+      case 'pan_camera_to_enemy':
+        print("🎥 แพนกล้องไปหาศัตรู");
+        
+        // ค้นหาศัตรูตัวที่เพิ่งเสกออกมา
+        final target = world.children.whereType<Enemy>().firstOrNull;
+        if (target != null) {
+          // สั่งกล้องให้เลิกตามกระต่าย แล้วไปตามศัตรูแทน
+          cameraComponent.follow(target); 
+          print("🎥✅✅✅ แพนกล้องไปหาศัตรูสำเร็จ");
         }
-      }
+        print("🎥❌❌❌ ออกจาก case pan_camera_to_enemy");
+        break;
+        
+      // วันหลังถ้ามีคำสั่ง 'open_door', 'give_item' ก็เอามาเพิ่มตรงนี้ได้เลย
     }
-
-    final fallbackSprite = await gameRef.loadSprite(spriteFile);
-    animation = SpriteAnimation.spriteList([fallbackSprite], stepTime: 1.0);
-    await super.onLoad();
-  }
-}
-
-class Fireball extends SpriteAnimationComponent
-    with HasGameRef<RabbitGame>, CollisionCallbacks {
-  final Vector2 direction;
-  final double speed = 300;
-  final double lifetime = 1.5;
-  double elapsed = 0;
-
-  Fireball({required Vector2 position, required this.direction})
-      : super(position: position, size: Vector2(24, 24), anchor: Anchor.center);
-
-  @override
-  Future<void> onLoad() async {
-    add(RectangleHitbox(isSolid: true));
   }
 
-  @override
-  void render(Canvas canvas) {
-    super.render(canvas);
-    canvas.drawCircle(
-        Offset(size.x / 2, size.y / 2), 8, Paint()..color = Colors.orange);
-    canvas.drawCircle(
-        Offset(size.x / 2, size.y / 2), 5, Paint()..color = Colors.yellow);
-  }
+  void unlockPath(String blockerName) {
+  // 1. ค้นหาวัตถุที่มีชื่อตรงกับที่เราต้องการใน World
+  // เราจะหาจากลูกๆ ของ world ที่เป็นประเภท Obstacle (หรือประเภทที่คุณใช้)
+  // ใช้ .toList() เพื่อดึงค่าออกมาทันที ป้องกันปัญหาเวลาลบ Object ออกจากเกมระหว่างที่กำลังวนลูป (Lazy Evaluation)
+  final blockers = world.children.whereType<Obstacle>().where((obj) => obj.name == blockerName).toList();
 
-  @override
-  void update(double dt) {
-    super.update(dt);
-    position += direction * speed * dt;
-    elapsed += dt;
-    if (elapsed > lifetime) removeFromParent();
-  }
-
-  @override
-  void onCollisionStart(
-      Set<Vector2> intersectionPoints, PositionComponent other) {
-    super.onCollisionStart(intersectionPoints, other);
-    if (other is Enemy) {
-      other.playHit();
-      other.die();
-      removeFromParent();
-    } else if (other is Obstacle) {
-      removeFromParent();
+  if (blockers.isNotEmpty) {
+    print("🔓 เข้าเงื่อนไข unlockPath");
+    for (final b in blockers) {
+      print("🔓 ปลดล็อกทาง: ลบ $blockerName ออกจากแมป");
+      
+      // 2. ลบออกจากเกม (อนาคตใส่ Animation หายไปตรงนี้ได้)
+      b.removeFromParent(); 
     }
   }
 }
 
-// ✅ Class สำหรับเก็บข้อมูลสำหรับเรียกมอนสเตอร์กลับมาเกิดใหม่
-class _RespawnData {
-  final Vector2 position;
-  final String name;
-  final String element;
-  final String strongSubject;
-  final String weakSubject;
-  final Map<String, double> proficiency;
-  double timer;
+void onBattleWin(Enemy defeatedEnemy) {
+  // เช็คว่าศัตรูที่ตายคือตัว Tutorial ใช่ไหม?
+  if (defeatedEnemy.enemyName == 'Mutant Drosera') {
+    print("✅✅✅ onBattleWin ทำงาน");
+    // สั่งเปิดทางที่ชื่อ tutorial_blocker
+    unlockPath('tutorial_blocker');
 
-  _RespawnData({
-    required this.position,
-    required this.name,
-    required this.element,
-    required this.strongSubject,
-    required this.weakSubject,
-    required this.proficiency,
-    required this.timer,
-  });
+    
+    // อาจจะเล่นคัตซีนดีใจต่อ
+    // currentScript = getWinScript();
+    // overlays.add('CutsceneOverlay');
+  }
 }
 
-// ✅ กล่องสีแดงสำหรับเช็คระยะ Hitbox (แก้ไขให้มี 2 สถานะ: เตือน กับ โจมตีจริง)
-class DebugHitbox extends PositionComponent {
-  final double lifetime;
-  final bool isWarning;
-  double elapsed = 0.0;
-
-  DebugHitbox({
-    required Vector2 position,
-    required Vector2 size,
-    this.lifetime = 0.3,
-    this.isWarning = false,
-  }) : super(position: position, size: size, anchor: Anchor.center);
-
-  @override
-  void render(Canvas canvas) {
-    super.render(canvas);
-
-    if (isWarning) {
-      // ✅ 1. State: Warning (เตือนผู้เล่น: พิ้นที่อันตรายสีเหลืองส้ม มีขอบ)
-      canvas.drawRect(
-        size.toRect(),
-        Paint()
-          ..color = Colors.orange.withOpacity(0.3)
-          ..style = PaintingStyle.fill,
-      );
-      canvas.drawRect(
-        size.toRect(),
-        Paint()
-          ..color = Colors.orangeAccent
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.0,
-      );
-    } else {
-      // ✅ 2. State: Real attack (โจมตีจริง: สีแดงเข้ม)
-      canvas.drawRect(
-        size.toRect(),
-        Paint()
-          ..color = Colors.red.withOpacity(0.7)
-          ..style = PaintingStyle.fill,
-      );
-    }
-  }
-
-  @override
-  void update(double dt) {
-    super.update(dt);
-    elapsed += dt;
-    if (elapsed >= lifetime) {
-      removeFromParent();
-    }
-  }
 }

@@ -1,5 +1,4 @@
 import 'package:flame/components.dart';
-import 'package:flame/sprite.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart'; // Added this to use Colors.transparent
 
