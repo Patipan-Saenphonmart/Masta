@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flame/input.dart';
+import 'package:flame/effects.dart'; // ✅ Import สำหรับ Effect กล้องสั่น
 import 'package:flutter/material.dart';
 import 'package:flame_tiled/flame_tiled.dart' hide Text;
 import '../data/game_data.dart';
@@ -23,6 +24,8 @@ import 'components/respawn_enemy.dart';
 import 'components/cutscene_trigger.dart';
 import '../models/cutscene_script.dart';
 import 'components/cutscene_script/bridge_scene_script.dart';
+import 'components/cutscene_script/shake_script.dart';
+
 
 
 class RabbitGame extends FlameGame
@@ -97,11 +100,15 @@ class RabbitGame extends FlameGame
   double _transitionAlpha = 0.0;
 
   // -------------------------------------------------------------------
-  // Lifecycle Methods
+  // ✅หมวด: Lifecycle Methods (จำเป็นต้องมี⚠️)
   // -------------------------------------------------------------------
 
   @override
   Future<void> onLoad() async {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันโหลดเกม (จำเป็นต้องมี⚠️)
+     เรียกโดย: 
+    ---------------------------------------------------*/
     await super.onLoad();
     playerHP = maxHP;
     final savedPos = await SaveManager.loadPlayerPosition();
@@ -137,6 +144,10 @@ class RabbitGame extends FlameGame
 
   @override
   void update(double dt) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันอัปเดตเกม (จำเป็นต้องมี⚠️)
+     เรียกโดย: 
+    ---------------------------------------------------*/
     super.update(dt);
 
     // ✅ ค่อยๆ จางหน้าจอออกหลังเปลี่ยนฉาก
@@ -272,7 +283,7 @@ class RabbitGame extends FlameGame
       if (!trigger.hasTriggered && rabbitHitBox.overlaps(trigger.toRect())) {
         // ล็อกกุญแจทันที! ป้องกันไม่ให้เฟรมถัดไป (1/60 วินาที) มารันโค้ดนี้ซ้ำ
         trigger.hasTriggered = true;
-        print("ชนกล่องแล้ว ✅✅✅");
+        print("ชนกล่องแล้ว ✅✅✅ ${trigger.actionName}");
         // 🌟 แยกแยะว่าเหยียบโดนกล่องของฉากไหน
         switch (trigger.actionName) {
           
@@ -280,8 +291,13 @@ class RabbitGame extends FlameGame
             print("🎬 โหลดฉาก: เจอศัตรูที่สะพาน");
             currentScript = bridgeSceneScript; // สร้างสคริปต์ฉากสะพานมารองรับ
             break; // 👈 จบเคสสะพาน
-            
+          case 'shake_cutscene':
+            print("🎬 โหลดฉาก: แผ่นดินไหว");
+            currentScript = shakeSceneScript; // สร้างสคริปต์ฉากแผ่นดินไหว
+            break; // 👈 จบเคสแผ่นดินไหว
+
           // วันหลังเพิ่ม case 'boss_scene' ได้ที่นี่เลย
+
         }
 
         // ==========================================
@@ -315,6 +331,10 @@ class RabbitGame extends FlameGame
 
   // ✅ ระบบเปิดแผนที่ (Fog of War)
   void _updateExploration() {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันอัปเดตการสำรวจแผนที่
+     เรียกโดย: 
+    ---------------------------------------------------*/
     const double chunkSize = 150.0; // ขนาดพื้นที่ 1 ช่องที่จะเปิด
     int chunkX = (rabbit.position.x / chunkSize).floor();
     int chunkY = (rabbit.position.y / chunkSize).floor();
@@ -337,12 +357,16 @@ class RabbitGame extends FlameGame
     }
   }
 
-  // -------------------------------------------------------------------
+  /* -------------------------------------------------------------------
   // Update Logic Helpers
-  // -------------------------------------------------------------------
+  // -------------------------------------------------------------------*/
 
   @override
   void render(Canvas canvas) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันเรนเดอร์เกม
+     เรียกโดย: 
+    ---------------------------------------------------*/
     // ✅ Scan B&W effect: วาดผ่าน ColorFilter grayscale
     if (isScanActive) {
       canvas.saveLayer(
@@ -962,6 +986,10 @@ class RabbitGame extends FlameGame
   // -------------------------------------------------------------------
 
   Future<void> loadLevel(String mapName, Vector2 targetSpawnPosition) async {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันโหลดด่าน
+     เรียกโดย: 
+    ---------------------------------------------------*/
     if (isLoading) return;
     _isTransitioning = true;
     _transitionAlpha = 1.0;
@@ -1221,13 +1249,20 @@ class RabbitGame extends FlameGame
     }
   }
 
-  // ✅ ฟังชั่นสปอนมอนสเตอร์พร้อมเก็บข้อมูลจุดเกิดเพื่อ Respawn
   void spawnEnemy(Enemy enemy) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันสปอนมอนสเตอร์
+     เรียกโดย: 
+    ---------------------------------------------------*/
     world.add(enemy);
     print("เกิดใหม่แล้ว✅✅✅");
   }
 
   void handleEnemyDeath(Enemy enemy) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันจัดการเมื่อมอนสเตอร์ตาย
+     เรียกโดย: 
+    ---------------------------------------------------*/
     // 1. สปอนของรางวัล (Loot)
     _spawnLoot(enemy.position.clone(), enemy.element);
     onBattleWin(enemy);
@@ -1245,6 +1280,10 @@ class RabbitGame extends FlameGame
   }
 
   void _updateRespawns(double dt) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันอัปเดตการเกิดใหม่
+     เรียกโดย: 
+    ---------------------------------------------------*/
     for (int i = _respawnWaitList.length - 1; i >= 0; i--) {
       _respawnWaitList[i].timer -= dt;
       if (_respawnWaitList[i].timer <= 0) {
@@ -1262,6 +1301,10 @@ class RabbitGame extends FlameGame
   }
 
   void _spawnLoot(Vector2 position, String element) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันสปอนของรางวัล
+     เรียกโดย: handleEnemyDeath() ใน main_game.dart
+    ---------------------------------------------------*/
     final rand = Random().nextDouble();
     // 70% chance spawn gold, 20% potion, 10% rare book
     if (rand < 0.7) {
@@ -1288,6 +1331,10 @@ class RabbitGame extends FlameGame
   }
 
   Future<Sprite?> _getSpriteFromGid(int gid, TiledComponent map) async {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันดึง Sprite จาก GID
+     เรียกโดย: 
+    ---------------------------------------------------*/
     final tileset = map.tileMap.map.tilesets.lastWhere(
       (ts) => ts.firstGid != null && gid >= ts.firstGid!,
       orElse: () => map.tileMap.map.tilesets.first,
@@ -1343,15 +1390,24 @@ class RabbitGame extends FlameGame
     return null;
   }
 
-  // -------------------------------------------------------------------
-  // UI & Input Callbacks
-  // -------------------------------------------------------------------
+  /* *******************************************************************
+   ✅ หมวด: ระบบควบคุมใน battle
+
+   ******************************************************************* */
 
   void setJoystickDirection(double x, double y) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันตั้งค่าทิศทางจอยสติ๊ก
+     เรียกโดย: 
+    ---------------------------------------------------*/
     joystickDirection.setValues(x, y);
   }
 
   void showDialog(String message) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันแสดงกล่องข้อความ
+     เรียกโดย: 
+    ---------------------------------------------------*/
     currentDialogMessage = message;
     isDialogActive = true;
 
@@ -1367,6 +1423,10 @@ class RabbitGame extends FlameGame
   }
 
   void closeDialog() {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันปิดกล่องข้อความ
+     เรียกโดย: 
+    ---------------------------------------------------*/
     isDialogActive = false;
 
     // ✅ กลับไปนอน (Sleeping)
@@ -1378,6 +1438,10 @@ class RabbitGame extends FlameGame
   }
 
   void onAnswerSelected(bool correct) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันเลือกคำตอบ
+     เรียกโดย: 
+    ---------------------------------------------------*/
     if (answered) return;
     answered = true;
     overlays.remove('QuestionOverlay');
@@ -1405,16 +1469,28 @@ class RabbitGame extends FlameGame
   }
 
   void damagePlayer(int dmg) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันลดพลังชีวิต
+     เรียกโดย: 
+    ---------------------------------------------------*/
     playerHP = (playerHP - dmg).clamp(0, maxHP);
     AudioManager().playSfx(AudioManager.sfxGetHit); // ✅ SFX โดนตี
   }
 
   void healPlayer() {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันฟื้นฟูพลังชีวิต
+     เรียกโดย: 
+    ---------------------------------------------------*/
     playerHP = maxHP;
   }
 
-  // ✅ Quiz Battle: callbacks หลังจบ Battle
+  
   void onBattleWon() {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันชนะใน Quiz Battle
+     เรียกโดย: 
+    ---------------------------------------------------*/
     if (enemy != null) {
       enemy!.hasShield = false; // โล่แตกแล้ว ให้สามารถโดนโจมตีปกติได้
       showDialog("เกราะของ ${enemy!.enemyName} ถูกทำลายแล้ว! โจมตีได้เลย!");
@@ -1439,6 +1515,10 @@ class RabbitGame extends FlameGame
   }
 
   void onBattleLost() {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันแพ้ใน Quiz Battle
+     เรียกโดย: 
+    ---------------------------------------------------*/
     // โดนตีแตก: knockback + ลด HP
     if (enemy != null) {
       Vector2 knockbackDir = (rabbit.position - enemy!.position).normalized();
@@ -1457,8 +1537,12 @@ class RabbitGame extends FlameGame
     AudioManager().playBgm(AudioManager.bgmOverworld); // ✅ กลับไปเพลง overworld
   }
 
-  // ✅ ฟังก์ชันทิ้งของบนพื้น
+
   void _dropAllItems() {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันทิ้งของบนพื้น
+     เรียกโดย: 
+    ---------------------------------------------------*/
     // 1. ทิ้งของใน inventory
     for (int i = 0; i < GameData.inventory.length; i++) {
       String itemName = GameData.inventory[i];
@@ -1474,8 +1558,11 @@ class RabbitGame extends FlameGame
     GameData.equippedItems.clear();
   }
 
-  // สร้าง WorldItem ให้ร่วงรอบๆ ตัวละครแบบสุ่ม
   void _spawnWorldItem(String itemName) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันสร้างไอเทมให้ร่วงรอบๆ ตัวละครแบบสุ่ม
+     เรียกโดย: 
+    ---------------------------------------------------*/
     if (itemName.isEmpty) return;
 
     // สุ่มตำแหน่งระหว่าง -40 ถึง +40 รอบๆ กระต่าย
@@ -1495,32 +1582,49 @@ class RabbitGame extends FlameGame
 
   @override
   void onRemove() {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันลบเกม
+     เรียกโดย: 
+    ---------------------------------------------------*/
     SaveManager.savePlayerPosition(rabbit.position.x, rabbit.position.y);
     AudioManager().stopWalkStep();
     super.onRemove();
   }
 
-  // -------------------------------------------------------------------
-  // ✅ Camera Zoom (สำหรับ "The World" effect)
-  // -------------------------------------------------------------------
+  /* *******************************************************************
+  // ✅ หมวด: ซูมกล้อง
+  //
+  ********************************************************************* */
   final double _defaultZoom = 1.8;
   double _targetZoom = 1.8;
   bool _isZooming = false;
   double _zoomSpeed = 2.0;
 
   void zoomCamera(double targetZoom, {double speed = 2.0}) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันซูมกล้อง
+     เรียกโดย: 
+    ---------------------------------------------------*/
     _targetZoom = targetZoom;
     _zoomSpeed = speed;
     _isZooming = true;
   }
 
   void resetCameraZoom({double speed = 2.0}) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันคืนค่าซูมกล้อง
+     เรียกโดย: 
+    ---------------------------------------------------*/
     _targetZoom = _defaultZoom;
     _zoomSpeed = speed;
     _isZooming = true;
   }
 
   void _updateCameraZoom(double dt) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันซูมกล้อง
+     เรียกโดย: 
+    ---------------------------------------------------*/
     if (!_isZooming) return;
     final currentZoom = cameraComponent.viewfinder.zoom;
     final diff = _targetZoom - currentZoom;
@@ -1532,25 +1636,34 @@ class RabbitGame extends FlameGame
     }
   }
 
-  // -------------------------------------------------------------------
-  // ✅ World Freeze — "The World" (หยุดเวลาทั้งโลก)
-  // -------------------------------------------------------------------
+  /* *******************************************************************
+  // ✅ หมวด: หยุดเวลาทั้งโลก
+  //
+   ********************************************************************* */
   void freezeWorld() {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันหยุดเวลาทั้งโลก
+     เรียกโดย: 
+    ---------------------------------------------------*/  
     isWorldFrozen = true;
-    // หยุดมอนสเตอร์ทั้งหมด
     for (final e in world.children.whereType<Enemy>()) {
       e.velocity = Vector2.zero();
     }
   }
 
   void unfreezeWorld() {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันคืนเวลาทั้งโลก
+     เรียกโดย: 
+    ---------------------------------------------------*/
     isWorldFrozen = false;
   }
 
-  // -------------------------------------------------------------------
-  // ✅ Overworld Attack — โจมตีศัตรูรอบตัวในโลก real-time
-  // -------------------------------------------------------------------
   void attackNearbyEnemy() {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันโจมตีศัตรูรอบตัวในโลก real-time
+     เรียกโดย: 
+    ---------------------------------------------------*/
     final bool isRunning = joystickDirection.length > 0.01;
     rabbit.playAttack(isRunning: isRunning);
 
@@ -1566,11 +1679,11 @@ class RabbitGame extends FlameGame
     hitEnemiesThisAttack.clear();
   }
 
-  // -------------------------------------------------------------------
-  // ✅ Scan World — "The World" (สแกนทำลายเกราะศัตรู)
-  // -------------------------------------------------------------------
   void scanWorld() {
-    // 1. หาศัตรูที่ใกล้ที่สุดที่มีเกราะ
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันสแกนหาศัตรูที่ใกล้ที่สุดที่มีเกราะ
+     เรียกโดย: 
+    ---------------------------------------------------*/
     Enemy? targetEnemy;
     double minDistance = 150.0; // ระยะมองของสแกน 150px
     for (final e in world.children.whereType<Enemy>()) {
@@ -1610,68 +1723,87 @@ class RabbitGame extends FlameGame
   }
 
   void endScanWorld() {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันปลดล็อกการสแกนโลก
+     เรียกโดย: 
+    ---------------------------------------------------*/
     isScanActive = false;
-    // Note: ถ้ากำลังสู้ BattleOverlay อยู่ ก็ปล่อยไป หรือถ้าสแกนไม่เจอ ใครทำก็ปลดออก
   }
 
-  // 🌟 ฟังก์ชันผู้กำกับ: รับคำสั่งจากสคริปต์มาแสดงผลในเกมจริง
+  
   void executeCutsceneAction(String actionName) {
+    /*-------------------------------------------------
+     หน้าที่:  ฟังก์ชันผู้กำกับ: รับคำสั่งจากสคริปต์มาแสดงผลในเกมจริง
+     เรียกโดย: ฟังก์ชัน _executeGameAction() ใน cutscene_overlay.dart
+    ---------------------------------------------------*/
     switch (actionName) {
       
-      // --- คำสั่งที่ 1: เสกศัตรู ---
       case 'spawn_tutorial_enemy':
         print("👾 กำลังเสกศัตรู: ดอกไม้กลายพันธุ์!");
         
         final tutorialEnemy = Enemy(
-          position: Vector2(4740, 2434), // ⚠️ แก้พิกัด X, Y ให้อยู่ตรงหน้าสะพานของคุณ
-          enemyName: 'Mutant Drosera', // ชื่อศัตรู
-          weakSubject: 'Biology',    // แพ้ทางชีววิทยา
+          position: Vector2(4740, 2434), 
+          enemyName: 'Mutant Drosera', 
+          weakSubject: 'Biology',    
           
           // ใส่พารามิเตอร์อื่นๆ ของ Enemy ตามที่คลาสคุณมี...
         );
-        world.add(tutorialEnemy); // โยนลงไปในแมป
+        world.add(tutorialEnemy); 
         break;
 
-      // --- คำสั่งที่ 2: เลื่อนกล้อง ---
+      
       case 'pan_camera_to_enemy':
         print("🎥 แพนกล้องไปหาศัตรู");
         
-        // ค้นหาศัตรูตัวที่เพิ่งเสกออกมา
+        
         final target = world.children.whereType<Enemy>().firstOrNull;
         if (target != null) {
-          // สั่งกล้องให้เลิกตามกระต่าย แล้วไปตามศัตรูแทน
           cameraComponent.follow(target); 
           print("🎥✅✅✅ แพนกล้องไปหาศัตรูสำเร็จ");
         }
         print("🎥❌❌❌ ออกจาก case pan_camera_to_enemy");
         break;
         
+      case 'shake_camera':
+        print("🎥 แผ่นดินไหว! กล้องสั่น");
+        cameraComponent.stop();
+        cameraComponent.viewfinder.add(
+          SequenceEffect([
+            MoveByEffect(Vector2(10, 10), EffectController(duration: 0.05, reverseDuration: 0.05)),
+            MoveByEffect(Vector2(-10, -10), EffectController(duration: 0.05, reverseDuration: 0.05)),
+            MoveByEffect(Vector2(-10, 10), EffectController(duration: 0.05, reverseDuration: 0.05)),
+            MoveByEffect(Vector2(10, -10), EffectController(duration: 0.05, reverseDuration: 0.05)),
+          ], repeatCount: 4), // สั่น 4 รอบ (ยึกยักๆ)
+        );
+        break;
+
       // วันหลังถ้ามีคำสั่ง 'open_door', 'give_item' ก็เอามาเพิ่มตรงนี้ได้เลย
     }
   }
 
   void unlockPath(String blockerName) {
-  // 1. ค้นหาวัตถุที่มีชื่อตรงกับที่เราต้องการใน World
-  // เราจะหาจากลูกๆ ของ world ที่เป็นประเภท Obstacle (หรือประเภทที่คุณใช้)
-  // ใช้ .toList() เพื่อดึงค่าออกมาทันที ป้องกันปัญหาเวลาลบ Object ออกจากเกมระหว่างที่กำลังวนลูป (Lazy Evaluation)
+    /*
+     หน้าที่:  ฟังก์ชันทำหน้าที่ปลดล็อกทาง layer obstacle จาก Tiled 
+     เรียกโดย: onBattleWin() ใน main_game.dart
+    */
   final blockers = world.children.whereType<Obstacle>().where((obj) => obj.name == blockerName).toList();
 
   if (blockers.isNotEmpty) {
-    print("🔓 เข้าเงื่อนไข unlockPath");
     for (final b in blockers) {
       print("🔓 ปลดล็อกทาง: ลบ $blockerName ออกจากแมป");
-      
-      // 2. ลบออกจากเกม (อนาคตใส่ Animation หายไปตรงนี้ได้)
+
       b.removeFromParent(); 
     }
   }
 }
 
 void onBattleWin(Enemy defeatedEnemy) {
-  // เช็คว่าศัตรูที่ตายคือตัว Tutorial ใช่ไหม?
+  /*
+   หน้าที่: ฆ่าศัตรูทางเปิด โดยเรียกใช้ unlockPath() 
+   เรียกโดย: handleEnemyDeath() ใน main_game.dart
+  */
   if (defeatedEnemy.enemyName == 'Mutant Drosera') {
     print("✅✅✅ onBattleWin ทำงาน");
-    // สั่งเปิดทางที่ชื่อ tutorial_blocker
     unlockPath('tutorial_blocker');
 
     

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="81" height="49" tilewidth="64" tileheight="64" infinite="0" nextlayerid="29" nextobjectid="55">
+<map version="1.10" tiledversion="1.12.1" orientation="orthogonal" renderorder="right-down" width="81" height="49" tilewidth="64" tileheight="64" infinite="0" nextlayerid="29" nextobjectid="66">
  <tileset firstgid="1" name="spritefusion" tilewidth="64" tileheight="64" tilecount="200" columns="8">
   <image source="../images/world/spritesheet.png" width="512" height="1600"/>
   <tile id="174">
@@ -446,10 +446,10 @@
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,356,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,354,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,354,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,355,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -1306,21 +1306,23 @@
 </data>
  </layer>
  <objectgroup id="22" name="GameObjects">
-  <object id="1" name="Enemy" type="Enemy" x="4674.62" y="1621.32" width="49" height="56.25"/>
+  <object id="1" name="Enemy" type="Enemy" x="3035.95" y="2166.65" width="49" height="56.25"/>
+  <object id="60" name="Boss_bio" type="Enemy" x="3019.95" y="1585.32" width="107" height="109.583"/>
+  <object id="57" name="Enemy" type="Enemy" x="2827.95" y="2454.65" width="49" height="56.25"/>
  </objectgroup>
  <objectgroup id="23" name="Collisions">
   <object id="17" x="4606.67" y="2757.33" width="8" height="312"/>
   <object id="18" x="4606" y="3058.5" width="442.5" height="11"/>
   <object id="20" x="5041" y="2758" width="10.5" height="309"/>
-  <object id="21" x="4606" y="2756.5" width="133.5" height="8"/>
+  <object id="21" x="4606" y="2756.5" width="128.5" height="8"/>
   <object id="22" x="4797" y="2752" width="256" height="9.5"/>
-  <object id="23" x="4734.5" y="2758" width="5" height="31"/>
-  <object id="24" x="4795.5" y="2752" width="5" height="35.5"/>
+  <object id="23" x="4734.32" y="2758" width="3.90909" height="31"/>
+  <object id="24" x="4796.59" y="2752" width="3.90909" height="35.5"/>
   <object id="27" x="4284.5" y="2487.5" width="4" height="264"/>
   <object id="29" x="4284.5" y="2752" width="259.5" height="2"/>
   <object id="30" x="4540.5" y="2622" width="3.5" height="130"/>
-  <object id="31" x="4540.5" y="2620.25" width="199" height="7"/>
-  <object id="32" x="4796.5" y="2621.25" width="132.5" height="3"/>
+  <object id="31" x="4540.5" y="2620.25" width="195" height="7"/>
+  <object id="32" x="4799.25" y="2621.25" width="129.75" height="3"/>
   <object id="33" x="4926.75" y="2558.75" width="3.25" height="65.25"/>
   <object id="34" x="4926.67" y="2557.67" width="135.333" height="4.33333"/>
   <object id="35" x="5057.33" y="1982.67" width="4.66667" height="578.667"/>
@@ -1338,21 +1340,37 @@
   <object id="52" x="4125.5" y="2431.75" width="159" height="6"/>
  </objectgroup>
  <objectgroup id="27" name="Triggers">
-  <object id="13" x="4736.33" y="2789.33" width="62.6667" height="17">
+  <object id="13" name="tutorial_cutscene" x="4736.33" y="2789.33" width="62.6667" height="17">
    <properties>
     <property name="action" value="tutorial_cutscene"/>
    </properties>
   </object>
-  <object id="54" x="3775" y="2048" width="13" height="896">
+  <object id="54" name="shake_cutscene" x="3775" y="2048" width="13" height="896">
    <properties>
     <property name="action" value="shake_cutscene"/>
    </properties>
   </object>
+  <object id="59" name="boss_cutscene" x="3010" y="1838" width="61" height="40">
+   <properties>
+    <property name="action" value="boss_cutscene"/>
+   </properties>
+  </object>
  </objectgroup>
  <objectgroup id="28" name="Obstacles">
-  <object id="26" x="4290" y="2435.83" width="41.5" height="52.5">
+  <object id="26" name="tutorial_blocker" x="4290" y="2435.83" width="41.5" height="52.5">
    <properties>
     <property name="name" value="tutorial_blocker"/>
+   </properties>
+  </object>
+  <object id="55" x="2687.33" y="2430" width="50" height="66.6667"/>
+  <object id="58" name="2_blocker" x="3009.33" y="2046.67" width="60.6667" height="47.3333">
+   <properties>
+    <property name="name" value="2_blocker"/>
+   </properties>
+  </object>
+  <object id="61" name="boss_blocker" x="4865.33" y="1330.67" width="60.6667" height="47.3333">
+   <properties>
+    <property name="name" value="2_blocker"/>
    </properties>
   </object>
  </objectgroup>

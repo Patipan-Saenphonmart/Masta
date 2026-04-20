@@ -69,6 +69,11 @@ class _CutsceneOverlayState extends State<CutsceneOverlay>
 
     // อ่าน uiEffect ของบรรทัดแรก แล้วตั้งค่าสถานะ UI
     _applyUiEffect(_lines[0].uiEffect);
+    
+    
+    _executeGameAction(_lines[0].gameAction);
+    
+    
 
     // เริ่มแสดง dialogue แรก
     Future.delayed(const Duration(milliseconds: 1500), () {
@@ -132,6 +137,7 @@ class _CutsceneOverlayState extends State<CutsceneOverlay>
   /// Passes a command to the Flame game engine.
   /// This is the ONLY place the overlay communicates back to the game world.
   void _executeGameAction(String? action) {
+    print("✅✅✅_executeGameAction  ทำงาน");
     if (action == null) return;
 
     // ✅ ส่งคำสั่งกลับไปให้ Flame engine จัดการ (SRP: overlay ไม่ยุ่งกับ game world)

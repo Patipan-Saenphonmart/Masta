@@ -41,7 +41,7 @@ enum RabbitState {
 }
 
 class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
-    with HasGameRef<FlameGame>, CollisionCallbacks {
+    with HasGameReference<FlameGame>, CollisionCallbacks {
   double moveSpeed = 100; // ปรับความเร็วตามต้องการ
   Vector2 velocity = Vector2.zero();
   final Vector2 _lastPosition = Vector2.zero();
@@ -55,7 +55,7 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
   // ✅ Attack state
   bool _isAttacking = false;
   double _attackElapsed = 0.0;
-  final double _attackDuration = 8 * 0.06; // 8 frames * 0.06 step time
+  final double attackDuration = 8 * 0.06; // 8 frames * 0.06 step time
 
   // ✅ ทิศทางล่าสุดที่กระต่ายหันไป (Last facing direction)
   Vector2 lastDirection = Vector2(0, 1);
@@ -86,16 +86,16 @@ class Rabbit extends SpriteAnimationGroupComponent<RabbitState>
     ));
 
     // ✅ 2. โหลดภาพ Sprite จาก GameData (centralized)
-    final idleImage = await gameRef.images.load(GameData.playerIdleSprite);
-    final walkImage = await gameRef.images.load(GameData.playerWalkSprite);
-    final runImage = await gameRef.images.load(GameData.playerRunSprite);
-    final hitImage = await gameRef.images.load(GameData.playerHitSprite);
-    final deadImage = await gameRef.images.load(GameData.playerDeadSprite);
-    final attackImage = await gameRef.images.load(GameData.playerAttackSprite);
+    final idleImage = await game.images.load(GameData.playerIdleSprite);
+    final walkImage = await game.images.load(GameData.playerWalkSprite);
+    final runImage = await game.images.load(GameData.playerRunSprite);
+    final hitImage = await game.images.load(GameData.playerHitSprite);
+    final deadImage = await game.images.load(GameData.playerDeadSprite);
+    final attackImage = await game.images.load(GameData.playerAttackSprite);
     final runattackImage =
-        await gameRef.images.load(GameData.playerRunAttackSprite);
+        await game.images.load(GameData.playerRunAttackSprite);
     final walkattackImage =
-        await gameRef.images.load(GameData.playerWalkAttackSprite);
+        await game.images.load(GameData.playerWalkAttackSprite);
 
     // ✅ 3. สร้าง SpriteSheet (ใช้ spriteFrameSize จาก GameData)
     final frameSize = Vector2.all(GameData.spriteFrameSize);
