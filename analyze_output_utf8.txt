@@ -1,0 +1,121 @@
+﻿Analyzing ai_test...
+
+  error - lib\game\components\cutscene_script\boss_bio_script.dart:1:8 - Target of URI doesn't exist: '../../models/cutscene_script.dart'. Try creating the file referenced by the URI, or try using a URI for a file that does exist. - uri_does_not_exist
+  error - lib\game\components\cutscene_script\boss_bio_script.dart:3:28 - The function 'CutsceneScript' isn't defined. Try importing the library that defines 'CutsceneScript', correcting the name to the name of an existing function, or defining a function named 'CutsceneScript'. - undefined_function
+  error - lib\game\components\cutscene_script\boss_bio_script.dart:6:5 - The function 'CutsceneScene' isn't defined. Try importing the library that defines 'CutsceneScene', correcting the name to the name of an existing function, or defining a function named 'CutsceneScene'. - undefined_function
+  error - lib\game\components\cutscene_script\boss_bio_script.dart:10:9 - The function 'CutsceneDialogue' isn't defined. Try importing the library that defines 'CutsceneDialogue', correcting the name to the name of an existing function, or defining a function named 'CutsceneDialogue'. - undefined_function
+  error - lib\game\components\cutscene_script\boss_bio_script.dart:15:9 - The function 'CutsceneDialogue' isn't defined. Try importing the library that defines 'CutsceneDialogue', correcting the name to the name of an existing function, or defining a function named 'CutsceneDialogue'. - undefined_function
+  error - lib\game\main_game.dart:925:28 - The named parameter 'description' is required, but there's no corresponding argument. Try adding the required argument. - missing_required_argument
+  error - lib\game\main_game.dart:925:28 - The named parameter 'spritePath' is required, but there's no corresponding argument. Try adding the required argument. - missing_required_argument
+  error - lib\game\main_game.dart:925:99 - The named parameter 'author' isn't defined. Try correcting the name to an existing named parameter's name, or defining a named parameter with the name 'author'. - undefined_named_parameter
+warning - lib\game\components\enemy.dart:33:16 - The value of the field '_hitStepTime' isn't used. Try removing the field, or using it. - unused_field
+warning - lib\game\components\enemy.dart:34:13 - The value of the field '_hitFrames' isn't used. Try removing the field, or using it. - unused_field
+warning - lib\game\components\player.dart:103:11 - The value of the local variable 'walkSheet' isn't used. Try removing the variable or using it. - unused_local_variable
+warning - lib\game\components\player.dart:185:7 - Two keys in a map literal shouldn't be equal. Change or remove the duplicate key. - equal_keys_in_map
+warning - lib\game\components\player.dart:187:7 - Two keys in a map literal shouldn't be equal. Change or remove the duplicate key. - equal_keys_in_map
+warning - lib\game\components\player.dart:189:7 - Two keys in a map literal shouldn't be equal. Change or remove the duplicate key. - equal_keys_in_map
+warning - lib\game\components\player.dart:191:7 - Two keys in a map literal shouldn't be equal. Change or remove the duplicate key. - equal_keys_in_map
+warning - lib\game\components\player.dart:195:7 - Two keys in a map literal shouldn't be equal. Change or remove the duplicate key. - equal_keys_in_map
+warning - lib\game\components\player.dart:197:7 - Two keys in a map literal shouldn't be equal. Change or remove the duplicate key. - equal_keys_in_map
+warning - lib\game\components\player.dart:199:7 - Two keys in a map literal shouldn't be equal. Change or remove the duplicate key. - equal_keys_in_map
+warning - lib\game\components\player.dart:201:7 - Two keys in a map literal shouldn't be equal. Change or remove the duplicate key. - equal_keys_in_map
+warning - lib\game\main_game.dart:1790:58 - This API is available since SDK 3.0.0, but constraints '>=2.18.0 <3.0.0' don't guarantee it. Try updating the SDK constraints. - sdk_version_since
+   info - lib\data\game_data.dart:225:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\data\game_data.dart:332:11 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\dialog\book_reading_dialog.dart:132:46 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\dialog\book_reading_dialog.dart:163:49 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\game\battle\battle_models.dart:1:1 - Dangling library doc comment. Add a 'library' directive after the library comment. - dangling_library_doc_comments
+   info - lib\game\components\MSTA_logo.dart:1:1 - The file name 'MSTA_logo.dart' isn't a lower_case_with_underscores identifier. Try changing the name to follow the lower_case_with_underscores style. - file_names
+   info - lib\game\components\animated_book.dart:17:74 - 'HasGameRef' is deprecated and shouldn't be used. Use HasGameReference instead. This mixin will be removed in a future version of Flame. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\components\enemy.dart:10:69 - 'HasGameRef' is deprecated and shouldn't be used. Use HasGameReference instead. This mixin will be removed in a future version of Flame. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\components\enemy.dart:121:42 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\components\navigation_trail.dart:30:30 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\components\tree.dart:42:34 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\components\tree.dart:53:34 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\main_game.dart:290:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:295:13 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:299:13 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:303:13 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:996:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:1283:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:1773:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:1787:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:1793:11 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:1795:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:1799:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:1824:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\main_game.dart:1837:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\overlays\battle_overlay.dart:352:35 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\battle_overlay.dart:746:36 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\cutscene_overlay.dart:63:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\overlays\cutscene_overlay.dart:140:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\game\overlays\cutscene_overlay.dart:436:31 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\cutscene_overlay.dart:458:30 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\cutscene_overlay.dart:462:41 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\cutscene_overlay.dart:466:41 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\cutscene_overlay.dart:478:31 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\cutscene_overlay.dart:481:33 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\cutscene_overlay.dart:486:35 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\cutscene_overlay.dart:507:39 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\cutscene_overlay.dart:509:58 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\cutscene_overlay.dart:533:43 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\game_ending_overlay.dart:41:29 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\inventory_overlay.dart:72:43 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\inventory_overlay.dart:83:52 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\inventory_overlay.dart:107:45 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\inventory_overlay.dart:758:33 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\inventory_overlay.dart:937:46 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\quest_overlay.dart:34:69 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\question_overlay.dart:201:48 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\question_overlay.dart:202:49 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\skill_overlay.dart:170:72 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\skill_overlay.dart:197:33 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\skill_overlay.dart:472:42 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\skill_overlay.dart:479:36 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\skill_overlay.dart:479:60 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\skill_overlay.dart:488:40 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\skill_overlay.dart:494:35 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\skill_overlay.dart:497:35 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\skill_overlay.dart:516:33 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\game\overlays\skill_overlay.dart:595:30 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\book_reading_page.dart:122:28 - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check. Guard a 'State.context' use with a 'mounted' check on the State, and other BuildContext use with a 'mounted' check on the BuildContext. - use_build_context_synchronously
+   info - lib\page\home_page.dart:96:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\page\home_page.dart:127:54 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\home_page.dart:153:39 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\home_page.dart:167:36 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\home_page.dart:168:47 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\home_page.dart:177:62 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\home_page.dart:243:37 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\home_page.dart:315:42 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\home_page.dart:320:42 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\home_page.dart:379:53 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\home_page.dart:399:60 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\home_page.dart:439:51 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\home_page.dart:476:60 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\quiz_game_page.dart:163:33 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\quiz_game_page.dart:232:33 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\quiz_game_page.dart:318:41 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\quiz_game_page.dart:322:56 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\shop_page.dart:103:12 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\page\topic_selection_page.dart:24:33 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\topic_selection_page.dart:89:44 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\topic_selection_page.dart:135:58 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\warehouse_page.dart:84:54 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\warehouse_page.dart:84:96 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\warehouse_page.dart:142:52 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\warehouse_page.dart:288:38 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\page\warehouse_page.dart:405:38 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\title_screen.dart:130:41 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\utils\audio_manager.dart:98:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\utils\audio_manager.dart:113:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\utils\audio_manager.dart:124:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\utils\audio_manager.dart:134:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\utils\audio_manager.dart:144:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\utils\audio_manager.dart:167:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\utils\audio_manager.dart:206:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\utils\save_manager.dart:14:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\utils\save_manager.dart:28:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\utils\save_manager.dart:32:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\utils\save_manager.dart:42:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+
+117 issues found.

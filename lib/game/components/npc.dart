@@ -5,10 +5,13 @@ enum NpcState { sleeping, idle }
 
 class Npc extends SpriteAnimationGroupComponent<NpcState> with HasGameReference<RabbitGame> {
   final String message;
+  final bool isMerchant; // ✅ Flag for shop NPCs
+  
   Npc(
       {required Vector2 position,
       required Vector2 size,
-      required this.message}) {
+      required this.message,
+      this.isMerchant = false}) {
     this.position = position;
     this.size = size;
     anchor = Anchor.center; // ✅ ใช้ Anchor center เพื่อให้หมุน/ขยับง่าย

@@ -16,6 +16,7 @@ import '../data/game_data.dart';
 import '../page/home_page.dart';
 import '../utils/audio_manager.dart';
 import '../game/components/cutscene_script/openning_script.dart';
+import '../page/shop_page.dart';
 
 class MainGamePage extends StatelessWidget {
   final bool showIntroCutscene; // ✅ เพิ่ม parameter สำหรับ cutscene
@@ -25,7 +26,12 @@ class MainGamePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final game = RabbitGame()
       ..isCutsceneMode = showIntroCutscene // ✅ set cutscene mode flag
-      ..currentScript = showIntroCutscene ? getOpeningScript() : null; // ✅ โหลดสคริปต์เปิดเกม
+      ..currentScript = showIntroCutscene ? getOpeningScript() : null // ✅ โหลดสคริปต์เปิดเกม
+      ..onOpenShop = () {
+        if (context.mounted) {
+          Navigator.push(context, MaterialPageRoute(builder: (ctx) => const ShopPage()));
+        }
+      };
 
     return Scaffold(
       body: GameWidget<RabbitGame>(

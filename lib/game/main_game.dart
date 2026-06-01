@@ -25,7 +25,9 @@ import 'components/cutscene_trigger.dart';
 import '../models/cutscene_script.dart';
 import 'components/cutscene_script/bridge_scene_script.dart';
 import 'components/cutscene_script/shake_script.dart';
-
+import 'components/cutscene_script/boss_bio_script.dart';
+import 'components/navigation_trail.dart';
+import '../models/book.dart';
 
 
 class RabbitGame extends FlameGame
@@ -45,6 +47,8 @@ class RabbitGame extends FlameGame
 
   // --- Game State ---
   int playerHP = 100;
+  int enemiesDefeatedSinceShake = 0; // ✅
+  ui.VoidCallback? onOpenShop; // ✅
   bool isGameOver = false; // ✅ Added Game Over flag
   bool inQuestion = false;
   bool answered = false;
@@ -295,6 +299,16 @@ class RabbitGame extends FlameGame
             print("🎬 โหลดฉาก: แผ่นดินไหว");
             currentScript = shakeSceneScript; // สร้างสคริปต์ฉากแผ่นดินไหว
             break; // 👈 จบเคสแผ่นดินไหว
+          case 'boss_cutscene':
+            print("🎬 โหลดฉาก: เจอบอส Bio");
+            currentScript = bossBioSceneScript;
+            break;
+          case 'targetMapBoss_math':
+            loadLevel('boss_math.tmx', Vector2(600, 600)); // วาร์ปไปแมปบอสเลข
+            break;
+          case 'targetMapBoss_physics':
+            loadLevel('boss_physics.tmx', Vector2(600, 600)); // วาร์ปไปแมปบอสฟิสิกส์
+            break;
 
           // วันหลังเพิ่ม case 'boss_scene' ได้ที่นี่เลย
 
@@ -852,7 +866,11 @@ class RabbitGame extends FlameGame
   void onActionPressed() {
     // คุยกับ NPC
     if (activeNpc != null) {
-      showDialog(activeNpc!.message);
+      if (activeNpc!.isMerchant) {
+        onOpenShop?.call(); // ✅ เปิดร้านค้าทับ dialogue
+      } else {
+        showDialog(activeNpc!.message);
+      }
       joystickDirection.setZero();
     }
     // เข้าประตู
@@ -901,10 +919,15 @@ class RabbitGame extends FlameGame
           GameData.inventory.add(itemName);
           showDialog("เก็บได้: $itemName !");
         }
-      } else {
         // ไอเทมทั่วไป
-        GameData.inventory.add(itemName);
-        showDialog("เก็บได้: $itemName !");
+        // ✅ ระบบตรวจสอบว่าอัตโนมัติแปลงเป็นหนังสือหรือไม่
+        if (GameData.isBook(itemName)) {
+          GameData.addBook(Book.regular(id: itemName, title: itemName, content: "บันทึกแห่งการผจญภัย...", description: "ไม่ทราบชื่อ"));
+          showDialog("ได้รับหังสือ: $itemName !");
+        } else {
+          GameData.inventory.add(itemName);
+          showDialog("เก็บได้: $itemName !");
+        }
       }
 
       // 2. ลบออกจากฉาก
@@ -1080,6 +1103,8 @@ class RabbitGame extends FlameGame
                 size: Vector2(obj.width, obj.height),
                 message:
                     obj.properties.getValue<String>('message') ?? 'สวัสดี!',
+                isMerchant:
+                    obj.properties.getValue<bool>('isMerchant') ?? false,
               )..priority = 5);
               break;
             case 'Enemy':
@@ -1265,6 +1290,13 @@ class RabbitGame extends FlameGame
     ---------------------------------------------------*/
     // 1. สปอนของรางวัล (Loot)
     _spawnLoot(enemy.position.clone(), enemy.element);
+    
+    // ✅ ยอดสะสมการฆ่าหลังแผ่นดินไหวเพื่อปลด 2_blocker
+    enemiesDefeatedSinceShake++;
+    if (enemiesDefeatedSinceShake >= 2) {
+      unlockPath('2_blocker');
+    }
+
     onBattleWin(enemy);
 
     // 2. เก็บเข้าคิวเกิดใหม่ (30 วินาที)
@@ -1495,9 +1527,8 @@ class RabbitGame extends FlameGame
       enemy!.hasShield = false; // โล่แตกแล้ว ให้สามารถโดนโจมตีปกติได้
       showDialog("เกราะของ ${enemy!.enemyName} ถูกทำลายแล้ว! โจมตีได้เลย!");
 
-      // ✅ Game Ending Condition: ชนะบอสใหญ่
-      if (enemy!.enemyName.toLowerCase().contains('บอส') ||
-          enemy!.enemyName.toLowerCase().contains('boss')) {
+      // ✅ Game Ending Condition: ชนะบอสใหญ่เคมี
+      if (enemy!.enemyName == 'finalBoss_chem') {
         overlays.remove('BattleOverlay');
         overlays.add('GameEndingOverlay');
         return; // ไม่ต้องรันโค้ดต่อ
@@ -1805,11 +1836,19 @@ void onBattleWin(Enemy defeatedEnemy) {
   if (defeatedEnemy.enemyName == 'Mutant Drosera') {
     print("✅✅✅ onBattleWin ทำงาน");
     unlockPath('tutorial_blocker');
-
-    
-    // อาจจะเล่นคัตซีนดีใจต่อ
-    // currentScript = getWinScript();
-    // overlays.add('CutsceneOverlay');
+  } else if (defeatedEnemy.enemyName == 'Boss_bio') {
+    unlockPath('boss_blocker');
+    _spawnWorldItem('story: หน้ากระดาษที่หายไปของ Bio');
+    // โชว์เส้นทางหรือแพนกล้องชั่วคราว
+    world.add(NavigationTrail(
+      start: rabbit.position.clone(),
+      target: Vector2(2500, 2000), // จุดหมายสมมติไปที่ boss_blocker
+    ));
+    GameData.updateQuestProgress('boss_bio', 1);
+  } else if (defeatedEnemy.enemyName == 'boss_math') {
+    unlockPath('boss_math_blocker');
+  } else if (defeatedEnemy.enemyName == 'boss_physics') {
+    unlockPath('boss_physics_blocker');
   }
 }
 
